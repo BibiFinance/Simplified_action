@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simplifiedaction – Score simplifié pour vos actions</title>
+  <meta name="description" content="Recherchez une action par nom ou ticker et consultez son score simplifié.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo" aria-label="Simplifiedaction accueil">
+        <span class="logo-icon">S</span>
+        <span class="logo-text">Simplifiedaction</span>
+      </a>
+      <nav class="nav" aria-label="Navigation principale">
+        <a href="index.html" class="nav-link nav-link--active">Recherche</a>
+        <a href="#expert" class="nav-link nav-link--expert">Mode expert</a>
+        <span id="nav-guest">
+          <a href="login.html" class="nav-link">Connexion</a>
+          <a href="register.html" class="nav-link nav-link--cta">Inscription</a>
+        </span>
+        <span id="nav-user" hidden>
+          <a href="compte.html" class="nav-link">Mon compte</a>
+          <button type="button" class="nav-link nav-link--logout" id="btn-logout">Déconnexion</button>
+        </span>
+      </nav>
+      <button type="button" class="menu-toggle" aria-label="Ouvrir le menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <main class="main">
+    <section class="hero">
+      <div class="container">
+        <h1 class="hero-title">Un score simple pour chaque action</h1>
+        <p class="hero-subtitle">Recherchez par nom d’entreprise ou symbole (ticker) et consultez le score simplifié, gratuitement.</p>
+
+        <form class="search-form" id="search-form" role="search" aria-label="Recherche d’action">
+          <label for="search-input" class="visually-hidden">Nom ou ticker de l’action</label>
+          <div class="search-wrap">
+            <input
+              type="search"
+              id="search-input"
+              class="search-input"
+              name="q"
+              placeholder="Ex. Apple, AAPL, Tesla, TSLA…"
+              autocomplete="off"
+              required
+            >
+            <button type="submit" class="search-btn">
+              <span class="search-btn-text">Rechercher</span>
+              <span class="search-btn-icon" aria-hidden="true">→</span>
+            </button>
+          </div>
+          <p class="search-hint">Mode gratuit : score simplifié visible pour tous.</p>
+        </form>
+
+        <p class="hero-cta">
+          <a href="#expert" class="link-expert">Passer en mode expert</a> pour le dashboard et les analyses détaillées.
+        </p>
+      </div>
+    </section>
+
+    <section class="results" id="results" aria-live="polite" aria-atomic="true" hidden>
+      <div class="container">
+        <h2 class="results-title">Résultat</h2>
+        <div class="results-content" id="results-content">
+          <!-- Rempli par JS -->
+        </div>
+        <div class="news-block" id="news-block" hidden>
+          <h3 class="news-block-title">Actualités <span class="news-block-source" id="news-source"></span></h3>
+          <ul class="news-list" id="news-list" aria-label="Articles récents"></ul>
+          <p class="news-loading" id="news-loading">Chargement des actualités…</p>
+          <p class="news-error" id="news-error" hidden></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="results results--empty" id="results-placeholder" aria-hidden="true">
+      <div class="container">
+        <p class="placeholder-text">Entrez un nom ou un ticker ci-dessus pour afficher le score.</p>
+      </div>
+    </section>
+
+    <section class="results results--error" id="results-error" hidden aria-live="assertive">
+      <div class="container">
+        <div class="error-box" id="error-box"></div>
+      </div>
+    </section>
+
+    <section class="expert-cta" id="expert">
+      <div class="container">
+        <h2 class="expert-cta-title">Mode expert</h2>
+        <p class="expert-cta-text">Dashboard, analyses détaillées et notations avancées. Réservé aux abonnés premium.</p>
+        <a href="register.html" class="btn btn--primary">Créer un compte</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p class="footer-copy">&copy; Simplifiedaction</p>
+      <nav class="footer-nav" aria-label="Pied de page">
+        <a href="liste-sp500.html">Liste S&P 500</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="js/auth.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

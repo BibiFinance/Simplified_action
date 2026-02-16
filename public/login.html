@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion – Simplifiedaction</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/pages.css">
+</head>
+<body>
+  <header class="header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo" aria-label="Simplifiedaction accueil">
+        <span class="logo-icon">S</span>
+        <span class="logo-text">Simplifiedaction</span>
+      </a>
+      <nav class="nav" aria-label="Navigation principale">
+        <a href="index.html" class="nav-link">Recherche</a>
+        <span id="nav-guest">
+          <a href="login.html" class="nav-link nav-link--active">Connexion</a>
+          <a href="register.html" class="nav-link nav-link--cta">Inscription</a>
+        </span>
+        <span id="nav-user" hidden>
+          <a href="compte.html" class="nav-link">Mon compte</a>
+          <button type="button" class="nav-link nav-link--logout" id="btn-logout">Déconnexion</button>
+        </span>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main page-main">
+    <div class="container page-container page-container--form">
+      <h1 class="page-title">Connexion</h1>
+      <p class="page-intro">Connectez-vous pour accéder à votre compte et vos favoris.</p>
+
+      <form class="auth-form" id="login-form" novalidate>
+        <label for="login-email" class="auth-label">Email</label>
+        <input type="email" id="login-email" name="email" class="auth-input" required autocomplete="email" placeholder="vous@exemple.com">
+        <label for="login-password" class="auth-label">Mot de passe</label>
+        <input type="password" id="login-password" name="password" class="auth-input" required autocomplete="current-password">
+        <p class="auth-error" id="login-error" hidden></p>
+        <button type="submit" class="btn btn--primary btn--full">Se connecter</button>
+      </form>
+
+      <p class="auth-switch">Pas encore de compte ? <a href="register.html">S’inscrire</a></p>
+      <a href="index.html" class="link-back">← Retour à l’accueil</a>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p class="footer-copy">&copy; Simplifiedaction</p>
+      <nav class="footer-nav" aria-label="Pied de page">
+        <a href="liste-sp500.html">Liste S&P 500</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="js/auth.js"></script>
+  <script>
+    (function () {
+      const form = document.getElementById('login-form');
+      const errorEl = document.getElementById('login-error');
+      if (!form) return;
+
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        if (errorEl) { errorEl.hidden = true; errorEl.textContent = ''; }
+        const email = form.querySelector('#login-email').value.trim();
+        const password = form.querySelector('#login-password').value;
+        if (!email || !password) {
+          if (errorEl) { errorEl.textContent = 'Renseignez email et mot de passe.'; errorEl.hidden = false; }
+          return;
+        }
+        const btn = form.querySelector('button[type="submit"]');
+        if (btn) { btn.disabled = true; btn.textContent = 'Connexion…'; }
+        try {
+          const res = await fetch('/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            if (errorEl) { errorEl.textContent = data.error || 'Connexion impossible.'; errorEl.hidden = false; }
+            if (btn) { btn.disabled = false; btn.textContent = 'Se connecter'; }
+            return;
+          }
+          if (data.token && window.simplifiedAuth) window.simplifiedAuth.setToken(data.token);
+          window.simplifiedAuth?.updateNav?.();
+          window.location.href = 'compte.html';
+        } catch (err) {
+          if (errorEl) { errorEl.textContent = 'Erreur réseau. Réessayez.'; errorEl.hidden = false; }
+          if (btn) { btn.disabled = false; btn.textContent = 'Se connecter'; }
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

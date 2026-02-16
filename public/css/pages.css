@@ -1,0 +1,123 @@
+/* Pages secondaires (login, register, contact, compte, etc.) */
+.page-main {
+  flex: 1;
+  padding: 3rem 0;
+}
+
+.page-container {
+  text-align: center;
+}
+
+.page-container--form {
+  max-width: 360px;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: left;
+}
+
+.page-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.page-intro {
+  margin: 0 0 1.5rem;
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+/* Formulaires auth */
+.auth-form {
+  margin-bottom: 1.5rem;
+}
+
+.auth-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.auth-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  font-family: var(--font);
+  font-size: 1rem;
+  color: var(--text);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-sizing: border-box;
+}
+
+.auth-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.auth-error {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  color: #fca5a5;
+}
+
+.auth-switch {
+  margin: 0 0 1rem;
+  font-size: 0.9375rem;
+  color: var(--text-muted);
+}
+
+.auth-switch a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.auth-switch a:hover {
+  text-decoration: underline;
+}
+
+.link-back {
+  display: inline-block;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.link-back:hover {
+  color: var(--accent);
+}
+
+.btn--full {
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
+.btn--secondary {
+  background: var(--bg-input);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn--secondary:hover,
+.btn--secondary:focus-visible {
+  background: var(--border);
+  color: var(--text);
+}
+
+.compte-info {
+  margin: 0 0 1rem;
+  font-size: 0.9375rem;
+  color: var(--text-muted);
+}
+
+/* Bouton Déconnexion dans la nav */
+.nav-link--logout {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  padding: 0.5rem 0.75rem;
+}

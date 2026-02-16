@@ -1,0 +1,23 @@
+# Dépendances
+node_modules/
+
+# Fichiers d'environnement (secrets : clés API, JWT, mots de passe BDD)
+# .env.example est versionné (template sans secrets) ; ne jamais committer .env
+.env
+.env.local
+.env.*.local
+.env.backup
+.env.bak
+
+# Documentation / fichiers perso (optionnel)
+Etapes.md
+Pages.md
+referentiel_bts.md
+Modelisation_db.mds
+Simplifiedaction.sql
+documentation.md
+
+# OS / éditeur
+.DS_Store
+Thumbs.db
+*.log
