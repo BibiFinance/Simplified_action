@@ -19,12 +19,14 @@
       </a>
       <nav class="nav" aria-label="Navigation principale">
         <a href="index.html" class="nav-link nav-link--active">Recherche</a>
+        <a href="liste-sp500.html" class="nav-link">Liste S&P 500</a>
         <a href="#expert" class="nav-link nav-link--expert">Mode expert</a>
         <span id="nav-guest">
           <a href="login.html" class="nav-link">Connexion</a>
           <a href="register.html" class="nav-link nav-link--cta">Inscription</a>
         </span>
         <span id="nav-user" hidden>
+          <a href="favoris.html" class="nav-link">Favoris</a>
           <a href="compte.html" class="nav-link">Mon compte</a>
           <button type="button" class="nav-link nav-link--logout" id="btn-logout">Déconnexion</button>
         </span>
@@ -37,7 +39,8 @@
 
   <main class="main">
     <section class="hero">
-      <div class="container">
+      <div class="hero-inner">
+        <div class="hero-content">
         <h1 class="hero-title">Un score simple pour chaque action</h1>
         <p class="hero-subtitle">Recherchez par nom d’entreprise ou symbole (ticker) et consultez le score simplifié, gratuitement.</p>
 
@@ -64,6 +67,18 @@
         <p class="hero-cta">
           <a href="#expert" class="link-expert">Passer en mode expert</a> pour le dashboard et les analyses détaillées.
         </p>
+        </div>
+
+        <div class="ticker-sidebar" aria-hidden="true">
+          <div class="ticker-sidebar-track">
+            <div class="ticker-sidebar-list">
+              <span>AAPL</span><span>Tesla</span><span>MSFT</span><span>Google</span><span>Amazon</span><span>NVIDIA</span><span>Meta</span><span>AMD</span><span>Netflix</span><span>Berkshire</span><span>JPMorgan</span><span>Visa</span><span>Coca-Cola</span><span>Disney</span><span>Pfizer</span>
+            </div>
+            <div class="ticker-sidebar-list">
+              <span>AAPL</span><span>Tesla</span><span>MSFT</span><span>Google</span><span>Amazon</span><span>NVIDIA</span><span>Meta</span><span>AMD</span><span>Netflix</span><span>Berkshire</span><span>JPMorgan</span><span>Visa</span><span>Coca-Cola</span><span>Disney</span><span>Pfizer</span>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -98,7 +113,7 @@
       <div class="container">
         <h2 class="expert-cta-title">Mode expert</h2>
         <p class="expert-cta-text">Dashboard, analyses détaillées et notations avancées. Réservé aux abonnés premium.</p>
-        <a href="register.html" class="btn btn--primary">Créer un compte</a>
+        <a href="abonnements.html" class="btn btn--primary">Voir les abonnements</a>
       </div>
     </section>
   </main>
@@ -107,6 +122,7 @@
     <div class="container">
       <p class="footer-copy">&copy; Simplifiedaction</p>
       <nav class="footer-nav" aria-label="Pied de page">
+        <a href="favoris.html">Favoris</a>
         <a href="liste-sp500.html">Liste S&P 500</a>
         <a href="contact.html">Contact</a>
       </nav>

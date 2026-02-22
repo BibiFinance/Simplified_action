@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mes favoris – Simplifiedaction</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/favoris.css">
+</head>
+<body>
+  <header class="header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo" aria-label="Simplifiedaction accueil">
+        <span class="logo-icon">S</span>
+        <span class="logo-text">Simplifiedaction</span>
+      </a>
+      <nav class="nav" aria-label="Navigation principale">
+        <a href="index.html" class="nav-link">Recherche</a>
+        <a href="favoris.html" class="nav-link nav-link--active">Favoris</a>
+        <span id="nav-guest">
+          <a href="login.html" class="nav-link">Connexion</a>
+          <a href="register.html" class="nav-link nav-link--cta">Inscription</a>
+        </span>
+        <span id="nav-user" hidden>
+          <a href="compte.html" class="nav-link">Mon compte</a>
+          <button type="button" class="nav-link nav-link--logout" id="btn-logout">Déconnexion</button>
+        </span>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main page-main favoris-main">
+    <div class="container page-container favoris-container">
+      <h1 class="page-title">Mes favoris</h1>
+      <p class="page-intro">Vos actions enregistrées pour un accès rapide à l’analyse.</p>
+
+      <div id="favoris-login-required" hidden>
+        <p class="favoris-msg">Connectez-vous pour voir et gérer vos favoris.</p>
+        <a href="login.html" class="btn btn--primary">Connexion</a>
+      </div>
+
+      <div id="favoris-content" hidden>
+        <p class="favoris-meta" id="favoris-meta"></p>
+        <ul class="favoris-list" id="favoris-list" aria-label="Liste des favoris"></ul>
+        <p class="favoris-empty" id="favoris-empty" hidden>Vous n’avez aucun favori. Recherchez une action puis cliquez sur « Ajouter aux favoris ».</p>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p class="footer-copy">&copy; Simplifiedaction</p>
+      <nav class="footer-nav" aria-label="Pied de page">
+        <a href="favoris.html">Favoris</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </footer>
+  <script src="js/auth.js"></script>
+  <script src="js/favoris.js"></script>
+</body>
+</html>

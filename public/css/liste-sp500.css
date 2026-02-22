@@ -1,0 +1,292 @@
+/* ===== Liste S&P 500 – Design financier premium, dark mode ===== */
+
+.sp500-main {
+  padding: 2rem 0 4rem;
+}
+
+.sp500-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+  text-align: left;
+}
+
+.sp500-title {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.5rem, 3vw, 1.875rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.sp500-intro {
+  margin: 0 0 1.5rem;
+  color: var(--text-muted);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.sp500-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.sp500-search-wrap {
+  flex: 1;
+  min-width: 200px;
+}
+
+.sp500-search {
+  width: 100%;
+  max-width: 320px;
+  padding: 0.625rem 1rem;
+  font-family: var(--font);
+  font-size: 0.9375rem;
+  color: var(--text);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--transition);
+}
+
+.sp500-search::placeholder {
+  color: var(--text-muted);
+}
+
+.sp500-search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.sp500-meta {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.sp500-table-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  box-shadow: var(--shadow);
+}
+
+.sp500-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.sp500-th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.sp500-th .sp500-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.sp500-th .sp500-sort:hover {
+  color: var(--text);
+}
+
+.sp500-th.sp500-sort--asc .sp500-sort::after,
+.sp500-th.sp500-sort--desc .sp500-sort::after {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  margin-left: 0.25rem;
+}
+
+.sp500-th.sp500-sort--asc .sp500-sort::after {
+  border-bottom: 4px solid var(--accent);
+}
+
+.sp500-th.sp500-sort--desc .sp500-sort::after {
+  border-top: 4px solid var(--accent);
+}
+
+.sp500-tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background var(--transition);
+}
+
+.sp500-tbody tr:last-child {
+  border-bottom: none;
+}
+
+.sp500-tbody tr.sp500-loading td,
+.sp500-tbody tr .sp500-empty,
+.sp500-tbody tr .sp500-error {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.sp500-tbody tr .sp500-error {
+  color: var(--text-muted);
+}
+
+.sp500-btn-retry {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.9rem;
+  font-family: var(--font);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--bg);
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.sp500-btn-retry:hover {
+  background: var(--accent-hover);
+}
+
+.sp500-row {
+  cursor: pointer;
+}
+
+.sp500-row:hover {
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.sp500-row td {
+  padding: 0.75rem 1rem;
+  vertical-align: middle;
+}
+
+.sp500-name {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.sp500-ticker code {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  padding: 0.2em 0.4em;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  color: var(--accent);
+}
+
+.sp500-badge-pro {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.15em 0.5em;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #0f1419;
+  background: linear-gradient(135deg, var(--accent) 0%, #fbbf24 100%);
+  border-radius: 4px;
+}
+
+.sp500-sector,
+.sp500-industry {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.sp500-action {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.sp500-btn-analyze {
+  display: inline-block;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--bg);
+  background: var(--accent);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transition: background var(--transition), color var(--transition);
+}
+
+.sp500-btn-analyze:hover {
+  background: var(--accent-hover);
+  color: var(--bg);
+}
+
+.sp500-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.sp500-page-btn {
+  padding: 0.5rem 1rem;
+  font-family: var(--font);
+  font-size: 0.875rem;
+  color: var(--text);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.sp500-page-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.sp500-page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sp500-page-info {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.sp500-footer-note {
+  margin: 2rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 640px) {
+  .sp500-th.sp500-th--industry,
+  .sp500-industry {
+    display: none;
+  }
+  .sp500-row td.sp500-industry {
+    display: none;
+  }
+  .sp500-table .sp500-th--industry,
+  .sp500-table .sp500-action {
+    display: table-cell;
+  }
+}

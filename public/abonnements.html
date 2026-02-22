@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Abonnements – Simplifiedaction</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/pages.css">
+</head>
+<body>
+  <header class="header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo" aria-label="Simplifiedaction accueil">
+        <span class="logo-icon">S</span>
+        <span class="logo-text">Simplifiedaction</span>
+      </a>
+      <nav class="nav">
+        <a href="index.html" class="nav-link">Recherche</a>
+        <span id="nav-guest">
+          <a href="login.html" class="nav-link">Connexion</a>
+          <a href="register.html" class="nav-link nav-link--cta">Inscription</a>
+        </span>
+        <span id="nav-user" hidden>
+          <a href="compte.html" class="nav-link">Mon compte</a>
+          <button type="button" class="nav-link nav-link--logout" id="btn-logout">Déconnexion</button>
+        </span>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main page-main">
+    <div class="container page-container">
+      <h1 class="page-title">Mode expert</h1>
+      <p class="page-intro">Accédez au dashboard, aux analyses détaillées et aux notations avancées avec un abonnement premium.</p>
+
+      <div id="abonnement-cta">
+        <p class="compte-info">Paiement sécurisé via Stripe. Résiliez à tout moment.</p>
+        <button type="button" class="btn btn--primary" id="btn-subscribe">S'abonner</button>
+        <p class="auth-switch">Pas encore de compte ? <a href="register.html">S'inscrire</a> puis revenir sur cette page.</p>
+      </div>
+      <div id="abonnement-login-required" hidden>
+        <p class="page-intro">Connectez-vous pour souscrire un abonnement.</p>
+        <a href="login.html" class="btn btn--primary">Connexion</a>
+      </div>
+      <p id="abonnement-error" class="auth-error" hidden></p>
+      <a href="index.html" class="link-back">← Retour à l'accueil</a>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p class="footer-copy">&copy; Simplifiedaction</p>
+      <nav class="footer-nav" aria-label="Pied de page">
+        <a href="liste-sp500.html">Liste S&P 500</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="js/auth.js"></script>
+  <script>
+    (function () {
+      const token = window.simplifiedAuth?.getToken?.();
+      const cta = document.getElementById('abonnement-cta');
+      const loginRequired = document.getElementById('abonnement-login-required');
+      const btn = document.getElementById('btn-subscribe');
+      const errEl = document.getElementById('abonnement-error');
+
+      if (!token) {
+        if (cta) cta.hidden = true;
+        if (loginRequired) loginRequired.hidden = false;
+      } else {
+        if (loginRequired) loginRequired.hidden = true;
+        btn?.addEventListener('click', async function () {
+          if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
+          btn.disabled = true;
+          try {
+            const res = await fetch('/api/stripe/create-checkout-session', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+              }
+            });
+            const data = await res.json().catch(function () { return {}; });
+            if (!res.ok) {
+              if (errEl) {
+                errEl.textContent = data.error || 'Erreur lors de la création du paiement.';
+                errEl.hidden = false;
+              }
+              btn.disabled = false;
+              return;
+            }
+            if (data.url) {
+              window.location.href = data.url;
+            } else {
+              if (errEl) { errEl.textContent = 'Réponse invalide.'; errEl.hidden = false; }
+              btn.disabled = false;
+            }
+          } catch (e) {
+            if (errEl) { errEl.textContent = 'Erreur réseau.'; errEl.hidden = false; }
+            btn.disabled = false;
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

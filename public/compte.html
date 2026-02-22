@@ -19,11 +19,13 @@
       </a>
       <nav class="nav" aria-label="Navigation principale">
         <a href="index.html" class="nav-link">Recherche</a>
+        <a href="favoris.html" class="nav-link">Favoris</a>
         <span id="nav-guest">
           <a href="login.html" class="nav-link">Connexion</a>
           <a href="register.html" class="nav-link nav-link--cta">Inscription</a>
         </span>
         <span id="nav-user" hidden>
+          <a href="favoris.html" class="nav-link">Favoris</a>
           <a href="compte.html" class="nav-link nav-link--active">Mon compte</a>
           <button type="button" class="nav-link nav-link--logout" id="btn-logout">Déconnexion</button>
         </span>
@@ -36,7 +38,8 @@
       <h1 class="page-title">Mon compte</h1>
       <div id="compte-content">
         <p class="page-intro" id="compte-email">Chargement…</p>
-        <p class="compte-info">Favoris et paramètres à venir (étape 7).</p>
+        <p class="compte-info" id="compte-premium"></p>
+        <p class="compte-info"><a href="favoris.html">Voir mes favoris</a></p>
         <button type="button" class="btn btn--secondary" id="btn-logout-page">Se déconnecter</button>
       </div>
       <div id="compte-login-required" hidden>
@@ -75,6 +78,14 @@
           .then(function (res) { return res.json(); })
           .then(function (data) {
             if (emailEl) emailEl.textContent = 'Connecté en tant que ' + (data.user?.email || '—');
+            const premiumEl = document.getElementById('compte-premium');
+            if (premiumEl) {
+              if (data.isPremium) {
+                premiumEl.textContent = 'Abonnement actif (mode expert).';
+              } else {
+                premiumEl.innerHTML = 'Vous n\'êtes pas abonné. <a href="abonnements.html" class="btn btn--primary" style="margin-top:0.5rem;display:inline-block">S\'abonner</a>';
+              }
+            }
           })
           .catch(function () {
             if (emailEl) emailEl.textContent = 'Erreur lors du chargement du profil.';

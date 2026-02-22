@@ -76,6 +76,11 @@
     const secteur = data.secteur || '';
     const score = data.score_simplifie != null ? Number(data.score_simplifie) : (data.note_globale != null ? Number(data.note_globale) : null);
 
+    var token = window.simplifiedAuth && window.simplifiedAuth.getToken && window.simplifiedAuth.getToken();
+    var favoriteBtn = '';
+    if (token && ticker && ticker !== '—') {
+      favoriteBtn = '<p class="card-action-fav"><button type="button" class="btn-favorite" data-ticker="' + escapeHtml(ticker) + '" data-name="' + escapeHtml(name) + '">★ Ajouter aux favoris</button></p>';
+    }
     resultsContent.innerHTML =
       '<div class="card-action">' +
         '<div class="card-action-header">' +
@@ -87,7 +92,30 @@
           '<span class="score-label">Score simplifié</span>' +
           '<span class="score-value">' + (score != null ? score.toFixed(1) : '—') + '</span>' +
         '</div>' +
+        favoriteBtn +
       '</div>';
+
+    var btn = resultsContent.querySelector('.btn-favorite');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        var t = btn.getAttribute('data-ticker');
+        var n = btn.getAttribute('data-name') || t;
+        var tok = window.simplifiedAuth && window.simplifiedAuth.getToken && window.simplifiedAuth.getToken();
+        if (!tok || !t) return;
+        btn.disabled = true;
+        fetch('/api/favorites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+          body: JSON.stringify({ ticker: t, name: n }),
+        })
+          .then(function (res) { return res.json(); })
+          .then(function () {
+            btn.textContent = '✓ Ajouté aux favoris';
+            btn.classList.add('btn-favorite--added');
+          })
+          .catch(function () { btn.disabled = false; });
+      });
+    }
 
     resultsSection.hidden = false;
     resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -184,4 +212,10 @@
       setLoading(false);
     }
   });
+
+  var urlQ = new URLSearchParams(window.location.search).get('q');
+  if (urlQ && urlQ.trim()) {
+    input.value = urlQ.trim();
+    form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+  }
 })();

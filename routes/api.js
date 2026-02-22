@@ -55,19 +55,13 @@ router.get('/search', async (req, res) => {
   }
 
   try {
-    let symbol = q.length <= 5 ? q.toUpperCase() : null;
-    let description = q;
-    let sector = null;
-
-    if (!symbol || q.length > 5) {
-      const searchRes = await finnhub.search(q);
-      const first = searchRes?.result?.find((r) => r.type === 'Common Stock' || !r.type);
-      if (first) {
-        symbol = first.symbol || first.displaySymbol || symbol;
-        description = first.description || q;
-      } else if (!symbol) {
-        symbol = q.slice(0, 4).toUpperCase();
-      }
+    // Toujours passer par Finnhub search (nom ou ticker → symbole)
+    const searchRes = await finnhub.search(q);
+    const first = searchRes?.result?.find((r) => r.type === 'Common Stock' || !r.type);
+    let symbol = first ? (first.symbol || first.displaySymbol) : null;
+    const description = first?.description || q;
+    if (!symbol) {
+      symbol = q.toUpperCase();
     }
 
     const [quoteRes, profileRes] = await Promise.all([

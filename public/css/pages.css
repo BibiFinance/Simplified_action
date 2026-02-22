@@ -113,11 +113,14 @@
   color: var(--text-muted);
 }
 
-/* Bouton Déconnexion dans la nav */
+/* Bouton Déconnexion dans la nav — aligné comme les autres liens */
 .nav-link--logout {
+  display: inline-flex;
+  align-items: center;
   background: none;
   border: none;
   cursor: pointer;
   font: inherit;
   padding: 0.5rem 0.75rem;
+  white-space: nowrap;
 }

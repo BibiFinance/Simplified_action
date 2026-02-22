@@ -57,7 +57,14 @@ Mots de passe hashés avec **Argon2** (ES02). Session = **JWT** (7 jours). Compt
 - **Créer la base et le schéma** : voir **[doc/POSTGRESQL_SETUP.md](doc/POSTGRESQL_SETUP.md)** pour installer PostgreSQL, créer la base et exécuter `Simplifiedaction.sql` (toutes les tables du projet).
 - Sans BDD, la table `users` est créée automatiquement au premier usage (seulement pour l’auth) ; pour le schéma complet (favoris, actions, etc.), exécuter `Simplifiedaction.sql` comme décrit dans le guide.
 
+## Stripe (étape 6)
+
+- **Page abonnements** : `public/abonnements.html` — bouton « S'abonner » (connecté) → redirection Stripe Checkout.
+- **Backend** : `POST /api/stripe/create-checkout-session` (auth), `POST /api/stripe/webhook` (body brut).
+- **.env** : `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_PRICE_ID` (obligatoire), `STRIPE_WEBHOOK_SECRET` (pour mettre à jour la BDD).
+- **Stripe Dashboard** : créer un **Produit** + **Prix** récurrent (ex. 9,99 €/mois), copier l’id du prix (`price_xxx`) dans `STRIPE_PRICE_ID`. Pour le webhook : URL `https://ton-domaine.com/api/stripe/webhook`, événements `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`.
+- **Compte** : `GET /auth/me` retourne `isPremium: true/false`. La table `stripe_subscriptions` est créée automatiquement si BDD configurée.
+
 ## Suite du projet
 
-- **Étape 6** : Stripe (abonnements premium).
 - **Étape 7** : Favoris + dashboard.

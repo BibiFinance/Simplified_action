@@ -3,12 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Liste S&P 500 – Simplifiedaction</title>
+  <title>Liste des entreprises du S&P 500 – Simplifiedaction</title>
+  <meta name="description" content="Liste à jour des entreprises du S&P 500 avec secteur, industrie et lien vers l'analyse.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/liste-sp500.css">
 </head>
 <body>
   <header class="header">
@@ -17,25 +19,72 @@
         <span class="logo-icon">S</span>
         <span class="logo-text">Simplifiedaction</span>
       </a>
-      <nav class="nav">
+      <nav class="nav" aria-label="Navigation principale">
         <a href="index.html" class="nav-link">Recherche</a>
+        <a href="favoris.html" class="nav-link">Favoris</a>
+        <a href="liste-sp500.html" class="nav-link nav-link--active">Liste S&P 500</a>
+        <a href="#expert" class="nav-link nav-link--expert">Mode expert</a>
         <span id="nav-guest">
           <a href="login.html" class="nav-link">Connexion</a>
           <a href="register.html" class="nav-link nav-link--cta">Inscription</a>
         </span>
         <span id="nav-user" hidden>
+          <a href="favoris.html" class="nav-link">Favoris</a>
           <a href="compte.html" class="nav-link">Mon compte</a>
           <button type="button" class="nav-link nav-link--logout" id="btn-logout">Déconnexion</button>
         </span>
       </nav>
+      <button type="button" class="menu-toggle" aria-label="Ouvrir le menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
     </div>
   </header>
 
-  <main class="main page-main">
-    <div class="container page-container">
-      <h1 class="page-title">Liste S&P 500</h1>
-      <p class="page-intro">Liste des noms et tickers du S&P 500 – à venir.</p>
-      <a href="index.html" class="btn btn--primary">Retour à l’accueil</a>
+  <main class="main page-main sp500-main">
+    <div class="container sp500-container">
+      <h1 class="sp500-title">Liste des entreprises du S&P 500</h1>
+      <p class="sp500-intro">Liste à jour automatiquement. Recherchez par nom ou ticker, triez par colonne, puis accédez à l’analyse.</p>
+
+      <div class="sp500-toolbar">
+        <div class="sp500-search-wrap">
+          <label for="sp500-search" class="visually-hidden">Rechercher par nom ou ticker</label>
+          <input type="search" id="sp500-search" class="sp500-search" placeholder="Rechercher (nom ou ticker)…" autocomplete="off">
+        </div>
+        <p class="sp500-meta" id="sp500-meta">Chargement…</p>
+      </div>
+
+      <div class="sp500-table-wrap" role="region" aria-label="Tableau S&P 500">
+        <table class="sp500-table" id="sp500-table">
+          <thead>
+            <tr>
+              <th scope="col" class="sp500-th sp500-th--name sp500-sort--asc" data-sort="name">
+                <button type="button" class="sp500-sort">Nom</button>
+              </th>
+              <th scope="col" class="sp500-th sp500-th--ticker" data-sort="ticker">
+                <button type="button" class="sp500-sort">Ticker</button>
+              </th>
+              <th scope="col" class="sp500-th sp500-th--sector" data-sort="sector">
+                <button type="button" class="sp500-sort">Secteur</button>
+              </th>
+              <th scope="col" class="sp500-th sp500-th--industry">Industrie</th>
+              <th scope="col" class="sp500-th sp500-th--action">Analyse</th>
+            </tr>
+          </thead>
+          <tbody id="sp500-tbody">
+            <tr class="sp500-loading" id="sp500-loading">
+              <td colspan="5">Chargement de la liste…</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <nav class="sp500-pagination" aria-label="Pagination" id="sp500-pagination" hidden>
+        <button type="button" class="sp500-page-btn" id="sp500-prev" aria-label="Page précédente">← Préc.</button>
+        <span class="sp500-page-info" id="sp500-page-info"></span>
+        <button type="button" class="sp500-page-btn" id="sp500-next" aria-label="Page suivante">Suiv. →</button>
+      </nav>
+
+      <p class="sp500-footer-note">Source : indice S&P 500 (liste statique).</p>
     </div>
   </main>
 
@@ -49,5 +98,6 @@
     </div>
   </footer>
   <script src="js/auth.js"></script>
+  <script src="js/liste-sp500.js"></script>
 </body>
 </html>

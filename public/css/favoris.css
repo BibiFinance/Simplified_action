@@ -1,0 +1,100 @@
+.favoris-main {
+  padding: 2rem 0;
+}
+
+.favoris-container {
+  text-align: left;
+  max-width: 560px;
+}
+
+.favoris-msg {
+  margin: 0 0 1rem;
+  color: var(--text-muted);
+}
+
+.favoris-meta {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.favoris-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.favoris-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.favoris-item:last-child {
+  border-bottom: none;
+}
+
+.favoris-item-info {
+  min-width: 0;
+}
+
+.favoris-item-ticker {
+  font-family: var(--font-mono);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.favoris-item-name {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.favoris-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.favoris-btn-analyze {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--bg);
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.favoris-btn-analyze:hover {
+  background: var(--accent-hover);
+}
+
+.favoris-btn-remove {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color var(--transition), color var(--transition);
+}
+
+.favoris-btn-remove:hover {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.favoris-empty {
+  margin: 1.5rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.9375rem;
+}

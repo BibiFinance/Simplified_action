@@ -130,7 +130,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// GET /auth/me (protégé)
+// GET /auth/me (protégé) — retourne user + isPremium (abonnement actif)
 router.get('/me', authMiddleware, async (req, res) => {
   const id = req.user.sub;
   const email = req.user.email;
@@ -140,7 +140,11 @@ router.get('/me', authMiddleware, async (req, res) => {
     if (!user) {
       return res.status(401).json({ error: 'Utilisateur introuvable.' });
     }
-    return res.json({ user: { id: user.id, email: user.email } });
+    const subscription = await db.getActiveSubscriptionByUserId(id);
+    return res.json({
+      user: { id: user.id, email: user.email },
+      isPremium: !!subscription,
+    });
   }
 
   const emailNorm = email?.toLowerCase();
@@ -148,7 +152,8 @@ router.get('/me', authMiddleware, async (req, res) => {
   if (!user) {
     return res.status(401).json({ error: 'Utilisateur introuvable.' });
   }
-  res.json({ user: { id: user.id, email: user.email } });
+  res.json({ user: { id: user.id, email: user.email }, isPremium: false });
 });
 
+router.authMiddleware = authMiddleware;
 module.exports = router;
