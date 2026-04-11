@@ -65,7 +65,6 @@
   const newsSource = document.getElementById('news-source');
   const newsLoading = document.getElementById('news-loading');
   const newsError = document.getElementById('news-error');
-
   function showResults(data) {
     if (errorSection) errorSection.hidden = true;
     if (placeholderSection) placeholderSection.hidden = true;

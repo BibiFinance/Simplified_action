@@ -48,6 +48,12 @@
   function initAuth() {
     updateNav();
     initLogout();
+    // Rappel après un court délai (évite race avec autres scripts / premier rendu)
+    setTimeout(updateNav, 50);
+    // Mise à jour quand on revient sur l’onglet (ex. connexion dans un autre onglet)
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') updateNav();
+    });
   }
 
   if (document.readyState === 'loading') {

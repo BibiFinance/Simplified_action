@@ -36,9 +36,14 @@
   <main class="main page-main">
     <div class="container page-container">
       <h1 class="page-title">Mon compte</h1>
+      <div id="compte-success-msg" class="compte-success" hidden></div>
       <div id="compte-content">
         <p class="page-intro" id="compte-email">Chargement…</p>
-        <p class="compte-info" id="compte-premium"></p>
+        <div class="compte-status-wrap" id="compte-status-wrap">
+          <p class="compte-status-label">Statut du compte :</p>
+          <p class="compte-info" id="compte-premium"></p>
+          <p class="compte-access" id="compte-access"></p>
+        </div>
         <p class="compte-info"><a href="favoris.html">Voir mes favoris</a></p>
         <button type="button" class="btn btn--secondary" id="btn-logout-page">Se déconnecter</button>
       </div>
@@ -66,25 +71,65 @@
       const content = document.getElementById('compte-content');
       const loginRequired = document.getElementById('compte-login-required');
       const emailEl = document.getElementById('compte-email');
+      const params = new URLSearchParams(window.location.search);
+      const successParam = params.get('success');
+
+      function renderProfile(data) {
+        if (emailEl) emailEl.textContent = 'Connecté en tant que ' + (data.user?.email || '—');
+        const premiumEl = document.getElementById('compte-premium');
+        const accessEl = document.getElementById('compte-access');
+        if (premiumEl) {
+          if (data.isPremium) {
+            premiumEl.innerHTML = '<span class="badge badge--premium">Premium</span>';
+            premiumEl.className = 'compte-info compte-info--premium';
+            if (accessEl) {
+              accessEl.innerHTML = 'Vous avez accès aux <strong>meilleures notations</strong>, aux analyses détaillées et au mode expert.';
+              accessEl.className = 'compte-access compte-access--premium';
+            }
+          } else {
+            premiumEl.innerHTML = '<span class="badge badge--basic">Basic</span> (gratuit)';
+            premiumEl.className = 'compte-info compte-info--basic';
+            premiumEl.innerHTML += ' <a href="abonnements.html" class="btn btn--primary" style="margin-left:0.5rem;display:inline-block">S\'abonner</a>';
+            if (accessEl) {
+              accessEl.textContent = 'Pour accéder aux meilleures notations et aux analyses détaillées, passez en Premium.';
+              accessEl.className = 'compte-access';
+            }
+          }
+        }
+      }
+
+      function fetchProfile() {
+        return fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+          .then(function (res) { return res.json(); });
+      }
 
       if (!token) {
         if (content) content.hidden = true;
         if (loginRequired) loginRequired.hidden = false;
       } else {
         if (loginRequired) loginRequired.hidden = true;
-        fetch('/auth/me', {
-          headers: { 'Authorization': 'Bearer ' + token }
-        })
-          .then(function (res) { return res.json(); })
+        if (successParam === '1') {
+          const successEl = document.getElementById('compte-success-msg');
+          if (successEl) {
+            successEl.textContent = 'Paiement reçu. Vérification de votre statut…';
+            successEl.hidden = false;
+          }
+        }
+        fetchProfile()
           .then(function (data) {
-            if (emailEl) emailEl.textContent = 'Connecté en tant que ' + (data.user?.email || '—');
-            const premiumEl = document.getElementById('compte-premium');
-            if (premiumEl) {
-              if (data.isPremium) {
-                premiumEl.textContent = 'Abonnement actif (mode expert).';
-              } else {
-                premiumEl.innerHTML = 'Vous n\'êtes pas abonné. <a href="abonnements.html" class="btn btn--primary" style="margin-top:0.5rem;display:inline-block">S\'abonner</a>';
-              }
+            renderProfile(data);
+            if (successParam === '1') {
+              setTimeout(function () {
+                fetchProfile().then(function (dataAgain) {
+                  renderProfile(dataAgain);
+                  const successEl = document.getElementById('compte-success-msg');
+                  if (successEl) {
+                    successEl.textContent = dataAgain.isPremium
+                      ? 'Votre compte est maintenant Premium. Vous avez accès aux meilleures notations.'
+                      : 'Paiement enregistré. Si votre statut ne passe pas à Premium, patientez quelques secondes et rechargez la page.';
+                  }
+                });
+              }, 2000);
             }
           })
           .catch(function () {

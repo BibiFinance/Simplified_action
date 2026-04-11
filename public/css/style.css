@@ -113,6 +113,11 @@ body {
   gap: 0.25rem;
 }
 
+#nav-user[hidden],
+#nav-guest[hidden] {
+  display: none !important;
+}
+
 .nav-link {
   padding: 0.5rem 0.75rem;
   color: var(--text-muted);
