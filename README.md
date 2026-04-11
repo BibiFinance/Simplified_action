@@ -17,6 +17,8 @@ Application web pour consulter un **score simplifié** des actions (recherche pa
 
 3. **Optionnel** : copier `.env.example` en `.env` et adapter `PORT`, `JWT_SECRET`, `FINNHUB_API_KEY`, `DATABASE_URL` (PostgreSQL pour persister les comptes ; sinon stockage en mémoire).
 
+4. **Tests automatisés** : `npm test` (Jest + supertest). Voir **[doc/TESTS_AUTOMATISES.md](doc/TESTS_AUTOMATISES.md)** pour la description complète.
+
 ## Structure du projet
 
 ```
@@ -34,7 +36,9 @@ Simplifiedaction/
 ├── routes/
 │   ├── api.js        # GET /api/search (Finnhub + cache), GET /api/news (RSS)
 │   └── auth.js       # POST /auth/register, /auth/login, GET /auth/me (Argon2 + JWT, BDD ou mémoire)
-├── server.js
+├── app.js            # Application Express (exportée pour les tests)
+├── server.js         # Point d'entrée (démarre l'app)
+├── tests/            # Tests automatisés (Jest + supertest)
 ├── .env.example      # PORT, JWT_SECRET, FINNHUB_API_KEY, DATABASE_URL
 └── doc/
 ```
