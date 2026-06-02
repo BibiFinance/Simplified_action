@@ -21,6 +21,38 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
+// GET /api/favorites/dashboard — favoris + dernières notations (étape 7)
+router.get('/dashboard', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.sub;
+    const items = await db.getFavoritesDashboard(userId);
+    const withScore = items.filter((i) => i.score_simplifie != null);
+    const avgScore =
+      withScore.length > 0
+        ? Math.round(
+            (withScore.reduce((s, i) => s + i.score_simplifie, 0) / withScore.length) * 10
+          ) / 10
+        : null;
+    let isPremium = false;
+    if (db.isConfigured()) {
+      const sub = await db.getActiveSubscriptionByUserId(userId);
+      isPremium = !!sub;
+    }
+    res.json({
+      items,
+      stats: {
+        count: items.length,
+        with_score: withScore.length,
+        average_score: avgScore,
+      },
+      isPremium,
+    });
+  } catch (err) {
+    console.error('Favorites dashboard:', err.message);
+    res.status(500).json({ error: 'Erreur lors du chargement du dashboard.' });
+  }
+});
+
 router.post('/', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.sub;

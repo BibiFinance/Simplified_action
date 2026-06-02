@@ -42,13 +42,27 @@ describe('GET /api/search', () => {
     expect(res.body).toHaveProperty('error');
   });
 
-  test('avec q renvoie 200 et un objet avec ticker, score_simplifie (ou fallback)', async () => {
+  test('avec q renvoie 200 et score simplifié (détails Premium si JWT)', async () => {
     const res = await request(app).get('/api/search').query({ q: 'AAPL' });
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('ticker');
     expect(res.body).toHaveProperty('score_simplifie');
-    expect(res.body).toHaveProperty('rendement');
-    expect(res.body).toHaveProperty('risque');
+    expect(res.body).toHaveProperty('premium_required_for_details');
+    expect(res.body.rendement).toBeUndefined();
+  });
+});
+
+describe('GET /api/notations/history', () => {
+  test('sans ticker renvoie 400', async () => {
+    const res = await request(app).get('/api/notations/history');
+    expect(res.status).toBe(400);
+  });
+
+  test('avec ticker renvoie 200 et items', async () => {
+    const res = await request(app).get('/api/notations/history').query({ ticker: 'AAPL' });
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('items');
+    expect(Array.isArray(res.body.items)).toBe(true);
   });
 });
 
@@ -152,6 +166,25 @@ describe('POST /api/favorites', () => {
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('favorite');
     expect(res.body.favorite.ticker).toBe('MSFT');
+  });
+});
+
+describe('GET /api/favorites/dashboard', () => {
+  test('sans token renvoie 401', async () => {
+    const res = await request(app).get('/api/favorites/dashboard');
+    expect(res.status).toBe(401);
+  });
+
+  test('avec token renvoie 200, items et stats', async () => {
+    const email = `test-${Date.now()}@example.com`;
+    const reg = await request(app).post('/auth/register').send({ email, password: 'TestPass123!' });
+    const res = await request(app)
+      .get('/api/favorites/dashboard')
+      .set('Authorization', `Bearer ${reg.body.token}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('items');
+    expect(res.body).toHaveProperty('stats');
+    expect(res.body.stats).toHaveProperty('count');
   });
 });
 

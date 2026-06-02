@@ -47,8 +47,10 @@ Simplifiedaction/
 
 | Méthode | Route | Description |
 |---------|--------|-------------|
-| GET | `/api/search?q=...` | Recherche (nom ou ticker) → Finnhub + score calculé ; cache 10 min. Si PostgreSQL configuré, historise l’action et la notation en BDD. Sans clé = simulation. |
+| GET | `/api/search?q=...` | Recherche → score simplifié pour tous ; **rendement, risque, explication** si JWT Premium. Historise en BDD si PostgreSQL. |
+| GET | `/api/notations/history?ticker=...` | Historique des scores (3 entrées Basic, 15 Premium avec JWT). |
 | GET | `/api/news?ticker=...` | Actualités RSS Yahoo Finance pour le ticker (ex. AAPL) |
+| GET | `/api/favorites/dashboard` | Dashboard favoris + dernières notations (auth) |
 | POST | `/auth/register` | Inscription (email, password) → JWT |
 | POST | `/auth/login` | Connexion (email, password) → JWT |
 | GET | `/auth/me` | Profil (header `Authorization: Bearer <token>`) |
@@ -69,7 +71,11 @@ Mots de passe hashés avec **Argon2** (ES02). Session = **JWT** (7 jours). Compt
 - **Stripe Dashboard** : créer un **Produit** + **Prix** récurrent (ex. 9,99 €/mois), copier l’id du prix (`price_xxx`) dans `STRIPE_PRICE_ID`. Pour le webhook : URL `https://ton-domaine.com/api/stripe/webhook`, événements `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`.
 - **Compte** : `GET /auth/me` retourne `isPremium: true/false`. La table `stripe_subscriptions` est créée automatiquement si BDD configurée. Au retour de Stripe Checkout, `POST /api/stripe/verify-session` active le Premium sans attendre le webhook (utile en local).
 
+## Dashboard & Premium
+
+- **Dashboard** : `public/favoris.html` — `GET /api/favorites/dashboard` (stats, tableau, dernières notations).
+- **Premium** : analyses détaillées (rendement, risque, explication) et historique étendu ; envoyer `Authorization: Bearer <token>` sur `/api/search` et `/api/notations/history`.
+
 ## Suite du projet
 
-- **Étape 7** : Favoris + dashboard.
-- **Étape 8** : Formulaire de contact (Formspree) intégré (`public/contact.html`).
+- Pages long terme (formation, parrainage brokers) : voir `doc/Pages.md`.

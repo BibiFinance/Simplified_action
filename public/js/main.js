@@ -1,6 +1,6 @@
 /**
  * Simplifiedaction – Recherche d'action (nom ou ticker)
- * Appel API backend à venir : GET /api/search?q=...
+ * GET /api/search?q=... (JWT optionnel pour détails Premium)
  */
 
 (function () {
@@ -18,7 +18,6 @@
 
   if (!form || !input) return;
 
-  // Menu mobile
   if (menuToggle && nav) {
     menuToggle.addEventListener('click', function () {
       const open = nav.classList.toggle('is-open');
@@ -26,29 +25,33 @@
     });
   }
 
-  /**
-   * Appel API recherche GET /api/search?q=...
-   * Utilise l'origine actuelle si servie par le backend (npm start), sinon simulation locale.
-   */
+  function getAuthHeaders() {
+    const token =
+      window.simplifiedAuth && window.simplifiedAuth.getToken && window.simplifiedAuth.getToken();
+    const headers = {};
+    if (token) headers.Authorization = 'Bearer ' + token;
+    return headers;
+  }
+
   async function searchAction(query) {
     const q = String(query).trim();
     if (!q) return null;
 
     const url = '/api/search?q=' + encodeURIComponent(q);
     try {
-      const res = await fetch(url, { method: 'GET' });
+      const res = await fetch(url, { method: 'GET', headers: getAuthHeaders() });
       if (!res.ok) throw new Error(res.status === 404 ? 'Aucune action trouvée.' : 'Erreur serveur.');
       return res.json();
     } catch (err) {
       if (err.message && err.message.includes('serveur')) throw err;
-      // Pas de backend (fichier ouvert en local) : simulation
       return {
         ticker: q.length <= 5 ? q.toUpperCase() : 'DEMO',
         entreprise: q,
         secteur: 'Technologie',
         score_simplifie: 7.2,
-        rendement: 2.4,
-        risque: 0.6
+        source: 'fallback',
+        temps_reel: false,
+        premium_required_for_details: true,
       };
     }
   }
@@ -69,6 +72,96 @@
     return '';
   }
 
+  function buildPremiumDetailsHtml(data) {
+    if (data.isPremium && data.rendement != null) {
+      return (
+        '<div class="score-details">' +
+        '<h3 class="score-details-title">Analyse détaillée (Premium)</h3>' +
+        '<div class="score-details-grid">' +
+        '<p class="score-details-item"><strong>Rendement (variation)</strong>' +
+        escapeHtml(String(data.rendement)) +
+        ' %</p>' +
+        '<p class="score-details-item"><strong>Risque (volatilité)</strong>' +
+        escapeHtml(String(Math.round((data.risque || 0) * 100))) +
+        ' %</p>' +
+        '<p class="score-details-item"><strong>Algorithme</strong>v' +
+        escapeHtml(data.version_algo || '1.0') +
+        '</p></div>' +
+        (data.explication
+          ? '<p class="score-details-explication">' + escapeHtml(data.explication) + '</p>'
+          : '') +
+        '</div>'
+      );
+    }
+    return (
+      '<div class="score-details score-details--locked">' +
+      '<h3 class="score-details-title">Analyse détaillée</h3>' +
+      '<p class="score-details-explication">Réservée aux abonnés Premium : rendement, risque, explication de l’algorithme et historique complet.</p>' +
+      '<a href="abonnements.html" class="btn btn--primary" style="margin-top:0.5rem;display:inline-block">Passer en Premium</a>' +
+      '</div>'
+    );
+  }
+
+  function loadNotationHistory(ticker) {
+    return fetch('/api/notations/history?ticker=' + encodeURIComponent(ticker), {
+      headers: getAuthHeaders(),
+    })
+      .then(function (res) {
+        return res.json();
+      })
+      .catch(function () {
+        return { items: [] };
+      });
+  }
+
+  function buildHistoryHtml(historyData) {
+    const items = historyData.items || [];
+    if (items.length === 0) {
+      return (
+        '<div class="history-block">' +
+        '<h3 class="history-block-title">Historique des notations</h3>' +
+        '<p class="history-hint">Aucun calcul enregistré pour ce ticker. Relancez une recherche pour alimenter l’historique.</p>' +
+        '</div>'
+      );
+    }
+    var rows = items
+      .map(function (item) {
+        var date = item.date_calcul
+          ? new Date(item.date_calcul).toLocaleString('fr-FR', {
+              day: '2-digit',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : '—';
+        return (
+          '<li class="history-item">' +
+          '<span class="history-item-score">' +
+          (item.note_globale != null ? Number(item.note_globale).toFixed(1) : '—') +
+          '/10</span>' +
+          '<span>' +
+          escapeHtml(date) +
+          (item.version_algo ? ' · v' + escapeHtml(item.version_algo) : '') +
+          '</span></li>'
+        );
+      })
+      .join('');
+    var hint = historyData.premium_required_for_full_history
+      ? '<p class="history-hint">' +
+        escapeHtml(historyData.message || '') +
+        ' <a href="abonnements.html">Premium</a></p>'
+      : '';
+    return (
+      '<div class="history-block">' +
+      '<h3 class="history-block-title">Historique des notations</h3>' +
+      '<ul class="history-list">' +
+      rows +
+      '</ul>' +
+      hint +
+      '</div>'
+    );
+  }
+
   function showError(message) {
     if (errorBox) errorBox.textContent = message;
     if (errorSection) errorSection.hidden = false;
@@ -81,6 +174,7 @@
   const newsSource = document.getElementById('news-source');
   const newsLoading = document.getElementById('news-loading');
   const newsError = document.getElementById('news-error');
+
   function showResults(data) {
     if (errorSection) errorSection.hidden = true;
     if (placeholderSection) placeholderSection.hidden = true;
@@ -89,26 +183,45 @@
     const ticker = data.ticker || '—';
     const name = data.entreprise || data.name || '—';
     const secteur = data.secteur || '';
-    const score = data.score_simplifie != null ? Number(data.score_simplifie) : (data.note_globale != null ? Number(data.note_globale) : null);
+    const score =
+      data.score_simplifie != null
+        ? Number(data.score_simplifie)
+        : data.note_globale != null
+          ? Number(data.note_globale)
+          : null;
 
     var token = window.simplifiedAuth && window.simplifiedAuth.getToken && window.simplifiedAuth.getToken();
     var favoriteBtn = '';
     if (token && ticker && ticker !== '—') {
-      favoriteBtn = '<p class="card-action-fav"><button type="button" class="btn-favorite" data-ticker="' + escapeHtml(ticker) + '" data-name="' + escapeHtml(name) + '">★ Ajouter aux favoris</button></p>';
+      favoriteBtn =
+        '<p class="card-action-fav"><button type="button" class="btn-favorite" data-ticker="' +
+        escapeHtml(ticker) +
+        '" data-name="' +
+        escapeHtml(name) +
+        '">★ Ajouter aux favoris</button></p>';
     }
+
     resultsContent.innerHTML =
       '<div class="card-action">' +
-        '<div class="card-action-header">' +
-          '<span class="card-action-ticker">' + escapeHtml(ticker) + '</span>' +
-          '<span class="card-action-name">' + escapeHtml(name) + '</span>' +
-        '</div>' +
-        (secteur ? '<p class="card-action-meta">Secteur : ' + escapeHtml(secteur) + '</p>' : '') +
-        '<div class="score-block">' +
-          '<span class="score-label">Score simplifié</span>' +
-          '<span class="score-value">' + (score != null ? score.toFixed(1) : '—') + '</span>' +
-        '</div>' +
-        (data.source ? '<p class="card-action-meta card-action-source">' + formatDataSource(data) + '</p>' : '') +
-        favoriteBtn +
+      '<div class="card-action-header">' +
+      '<span class="card-action-ticker">' +
+      escapeHtml(ticker) +
+      '</span>' +
+      '<span class="card-action-name">' +
+      escapeHtml(name) +
+      '</span>' +
+      (data.isPremium ? ' <span class="badge badge--premium">Premium</span>' : '') +
+      '</div>' +
+      (secteur ? '<p class="card-action-meta">Secteur : ' + escapeHtml(secteur) + '</p>' : '') +
+      '<div class="score-block">' +
+      '<span class="score-label">Score simplifié</span>' +
+      '<span class="score-value">' +
+      (score != null ? score.toFixed(1) : '—') +
+      '</span></div>' +
+      (data.source ? '<p class="card-action-meta card-action-source">' + formatDataSource(data) + '</p>' : '') +
+      buildPremiumDetailsHtml(data) +
+      '<div id="history-placeholder">Chargement de l’historique…</div>' +
+      favoriteBtn +
       '</div>';
 
     var btn = resultsContent.querySelector('.btn-favorite');
@@ -121,15 +234,29 @@
         btn.disabled = true;
         fetch('/api/favorites', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+          headers: Object.assign(
+            { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+            {}
+          ),
           body: JSON.stringify({ ticker: t, name: n }),
         })
-          .then(function (res) { return res.json(); })
+          .then(function (res) {
+            return res.json();
+          })
           .then(function () {
             btn.textContent = '✓ Ajouté aux favoris';
             btn.classList.add('btn-favorite--added');
           })
-          .catch(function () { btn.disabled = false; });
+          .catch(function () {
+            btn.disabled = false;
+          });
+      });
+    }
+
+    if (ticker && ticker !== '—') {
+      loadNotationHistory(ticker).then(function (historyData) {
+        var el = document.getElementById('history-placeholder');
+        if (el) el.outerHTML = buildHistoryHtml(historyData);
       });
     }
 
@@ -164,15 +291,26 @@
       }
       const items = data.items || [];
       if (items.length === 0) {
-        newsList.innerHTML = '<li class="news-item news-item--empty">Aucune actualité récente pour ce ticker.</li>';
+        newsList.innerHTML =
+          '<li class="news-item news-item--empty">Aucune actualité récente pour ce ticker.</li>';
       } else {
-        newsList.innerHTML = items.map(function (item) {
-          const title = escapeHtml(item.titre || 'Sans titre');
-          const url = (item.url || '').trim();
-          const link = url ? '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer" class="news-item-link">' + title + '</a>' : '<span>' + title + '</span>';
-          const date = item.date_publi ? '<time class="news-item-date">' + escapeHtml(item.date_publi) + '</time>' : '';
-          return '<li class="news-item">' + link + (date ? ' ' + date : '') + '</li>';
-        }).join('');
+        newsList.innerHTML = items
+          .map(function (item) {
+            const title = escapeHtml(item.titre || 'Sans titre');
+            const url = (item.url || '').trim();
+            const link = url
+              ? '<a href="' +
+                escapeHtml(url) +
+                '" target="_blank" rel="noopener noreferrer" class="news-item-link">' +
+                title +
+                '</a>'
+              : '<span>' + title + '</span>';
+            const date = item.date_publi
+              ? '<time class="news-item-date">' + escapeHtml(item.date_publi) + '</time>'
+              : '';
+            return '<li class="news-item">' + link + (date ? ' ' + date : '') + '</li>';
+          })
+          .join('');
       }
     } catch (err) {
       if (newsLoading) newsLoading.hidden = true;

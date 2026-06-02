@@ -1,6 +1,7 @@
 /**
  * Routes API publiques (recherche, actualités RSS, etc.)
- * GET /api/search?q=... → Finnhub (recherche + quote + profil) + computeScore, avec cache
+ * GET /api/search?q=... → Finnhub + score (détails réservés Premium si JWT)
+ * GET /api/notations/history?ticker=... → historique des scores en BDD
  * GET /api/news?ticker=... → flux RSS Yahoo Finance
  */
 
@@ -8,19 +9,19 @@ const express = require('express');
 const Parser = require('rss-parser');
 const finnhub = require('../lib/finnhub');
 const db = require('../lib/db');
-const { computeScore, VERSION_ALGO } = require('../lib/score');
+const { computeScore, getScoreExplanation, VERSION_ALGO } = require('../lib/score');
+const { getPremiumStatusFromRequest } = require('../lib/premium');
 
 const router = express.Router();
 const rssParser = new Parser({ timeout: 10000 });
 
 const YAHOO_RSS_BASE = 'https://finance.yahoo.com/rss/headline';
 
-// Cache recherche (symbole ou requête -> { data, date }) pour limiter les appels Finnhub
 const searchCache = new Map();
-const SEARCH_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const SEARCH_CACHE_TTL_MS = 10 * 60 * 1000;
 
 const newsCache = new Map();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 async function persistScoreHistory(data) {
   if (!db.isConfigured()) return;
@@ -39,7 +40,32 @@ async function persistScoreHistory(data) {
   }
 }
 
-// Réponse de secours si Finnhub indisponible ou sans clé
+function buildClientResponse(data, isPremium, extra = {}) {
+  const base = {
+    ticker: data.ticker,
+    entreprise: data.entreprise,
+    secteur: data.secteur,
+    score_simplifie: data.score_simplifie,
+    source: data.source,
+    temps_reel: data.temps_reel,
+    isPremium: !!isPremium,
+    ...extra,
+  };
+  if (isPremium) {
+    return {
+      ...base,
+      rendement: data.rendement,
+      risque: data.risque,
+      version_algo: VERSION_ALGO,
+      explication: getScoreExplanation(data),
+    };
+  }
+  return {
+    ...base,
+    premium_required_for_details: true,
+  };
+}
+
 function fallbackSearch(q) {
   const ticker = q.length <= 5 ? q.toUpperCase() : q.slice(0, 4).toUpperCase();
   const entreprise = q.length > 5 ? q : `Entreprise ${q}`;
@@ -56,31 +82,54 @@ function fallbackSearch(q) {
   };
 }
 
-// GET /api/search?q=AAPL ou "Apple" — Finnhub + notation automatique
+// GET /api/notations/history?ticker=AAPL — historique en BDD (détails complets si Premium)
+router.get('/notations/history', async (req, res) => {
+  const ticker = (req.query.ticker || '').trim();
+  if (!ticker) {
+    return res.status(400).json({ error: 'Paramètre ticker requis.' });
+  }
+  const { isPremium } = await getPremiumStatusFromRequest(req);
+  const limit = isPremium ? 15 : 3;
+  const items = db.isConfigured()
+    ? await db.getNotationHistoryByTicker(ticker, limit)
+    : [];
+  res.json({
+    ticker: ticker.toUpperCase(),
+    items,
+    isPremium,
+    premium_required_for_full_history: !isPremium,
+    message: isPremium
+      ? null
+      : 'Historique limité (3 entrées). Passez en Premium pour l’historique complet.',
+  });
+});
+
+// GET /api/search?q=AAPL ou "Apple"
 router.get('/search', async (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) {
     return res.status(400).json({ error: 'Paramètre q (recherche) requis.' });
   }
 
+  const { isPremium } = await getPremiumStatusFromRequest(req);
   const cacheKey = q.toUpperCase();
   const cached = searchCache.get(cacheKey);
   if (cached && Date.now() - cached.date < SEARCH_CACHE_TTL_MS) {
-    return res.json({
-      ...cached.data,
-      source: 'cache',
-      temps_reel: cached.data.temps_reel === true,
-      cache_age_sec: Math.round((Date.now() - cached.date) / 1000),
-    });
+    return res.json(
+      buildClientResponse(cached.data, isPremium, {
+        source: 'cache',
+        temps_reel: cached.data.temps_reel === true,
+        cache_age_sec: Math.round((Date.now() - cached.date) / 1000),
+      })
+    );
   }
 
   const key = finnhub.getApiKey();
   if (!key) {
-    return res.json(fallbackSearch(q));
+    return res.json(buildClientResponse(fallbackSearch(q), isPremium));
   }
 
   try {
-    // Toujours passer par Finnhub search (nom ou ticker → symbole)
     const searchRes = await finnhub.search(q);
     const first = searchRes?.result?.find((r) => r.type === 'Common Stock' || !r.type);
     let symbol = first ? (first.symbol || first.displaySymbol) : null;
@@ -98,7 +147,7 @@ router.get('/search', async (req, res) => {
       const fallback = fallbackSearch(q);
       fallback.ticker = symbol;
       fallback.entreprise = description;
-      return res.json(fallback);
+      return res.json(buildClientResponse(fallback, isPremium));
     }
 
     const profile = profileRes || {};
@@ -118,14 +167,14 @@ router.get('/search', async (req, res) => {
     };
     await persistScoreHistory(data);
     searchCache.set(cacheKey, { data, date: Date.now() });
-    res.json(data);
+    res.json(buildClientResponse(data, isPremium));
   } catch (err) {
     console.error('Finnhub search:', err.message);
-    res.json(fallbackSearch(q));
+    res.json(buildClientResponse(fallbackSearch(q), isPremium));
   }
 });
 
-// GET /api/news?ticker=AAPL — actualités Yahoo Finance (flux RSS)
+// GET /api/news?ticker=AAPL
 router.get('/news', async (req, res) => {
   const ticker = (req.query.ticker || '').trim().toUpperCase();
   if (!ticker) {
@@ -143,7 +192,9 @@ router.get('/news', async (req, res) => {
     const items = (feed.items || []).slice(0, 10).map((item) => ({
       titre: item.title || '',
       url: item.link || '',
-      resume: item.contentSnippet || item.content ? String(item.content).replace(/<[^>]+>/g, '').slice(0, 200) : '',
+      resume: item.contentSnippet || item.content
+        ? String(item.content).replace(/<[^>]+>/g, '').slice(0, 200)
+        : '',
       date_publi: item.pubDate || null,
     }));
     newsCache.set(ticker, { items, date: Date.now() });

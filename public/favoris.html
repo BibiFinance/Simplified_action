@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mes favoris – Simplifiedaction</title>
+  <title>Dashboard favoris – Simplifiedaction</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
@@ -20,7 +20,7 @@
       </a>
       <nav class="nav" aria-label="Navigation principale">
         <a href="index.html" class="nav-link">Recherche</a>
-        <a href="favoris.html" class="nav-link nav-link--active">Favoris</a>
+        <a href="favoris.html" class="nav-link nav-link--active">Dashboard</a>
         <span id="nav-guest">
           <a href="login.html" class="nav-link">Connexion</a>
           <a href="register.html" class="nav-link nav-link--cta">Inscription</a>
@@ -35,18 +35,39 @@
 
   <main class="main page-main favoris-main">
     <div class="container page-container favoris-container">
-      <h1 class="page-title">Mes favoris</h1>
-      <p class="page-intro">Vos actions enregistrées pour un accès rapide à l’analyse.</p>
+      <h1 class="page-title">Dashboard favoris</h1>
+      <p class="page-intro">Vue d’ensemble de vos actions suivies et de leurs dernières notations enregistrées.</p>
 
       <div id="favoris-login-required" hidden>
-        <p class="favoris-msg">Connectez-vous pour voir et gérer vos favoris.</p>
+        <p class="favoris-msg">Connectez-vous pour accéder à votre dashboard.</p>
         <a href="login.html" class="btn btn--primary">Connexion</a>
       </div>
 
       <div id="favoris-content" hidden>
+        <div class="dashboard-stats" id="dashboard-stats" aria-label="Statistiques"></div>
         <p class="favoris-meta" id="favoris-meta"></p>
-        <ul class="favoris-list" id="favoris-list" aria-label="Liste des favoris"></ul>
+        <div class="dashboard-table-wrap">
+          <table class="dashboard-table" id="dashboard-table">
+            <thead>
+              <tr>
+                <th>Ticker</th>
+                <th>Entreprise</th>
+                <th>Secteur</th>
+                <th>Dernier score</th>
+                <th>Date</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="favoris-tbody"></tbody>
+          </table>
+        </div>
+        <ul class="favoris-list favoris-list--legacy" id="favoris-list" hidden aria-hidden="true"></ul>
         <p class="favoris-empty" id="favoris-empty" hidden>Vous n’avez aucun favori. Recherchez une action puis cliquez sur « Ajouter aux favoris ».</p>
+        <p class="dashboard-premium-hint" id="dashboard-premium-hint" hidden>
+          <span class="badge badge--basic">Basic</span>
+          Analyses détaillées et historique complet réservés aux abonnés
+          <a href="abonnements.html">Premium</a>.
+        </p>
       </div>
     </div>
   </main>
@@ -55,7 +76,7 @@
     <div class="container">
       <p class="footer-copy">&copy; Simplifiedaction</p>
       <nav class="footer-nav" aria-label="Pied de page">
-        <a href="favoris.html">Favoris</a>
+        <a href="favoris.html">Dashboard</a>
         <a href="contact.html">Contact</a>
       </nav>
     </div>

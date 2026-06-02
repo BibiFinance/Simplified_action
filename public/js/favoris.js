@@ -1,19 +1,51 @@
 /**
- * Page Mes favoris : liste, lien vers analyse, suppression.
+ * Dashboard favoris : stats, tableau avec dernières notations, suppression.
  */
 (function () {
   const token = window.simplifiedAuth?.getToken?.();
   const loginRequired = document.getElementById('favoris-login-required');
   const content = document.getElementById('favoris-content');
-  const listEl = document.getElementById('favoris-list');
+  const tbody = document.getElementById('favoris-tbody');
+  const statsEl = document.getElementById('dashboard-stats');
   const metaEl = document.getElementById('favoris-meta');
   const emptyEl = document.getElementById('favoris-empty');
+  const premiumHint = document.getElementById('dashboard-premium-hint');
 
   function getAnalysisUrl(ticker) {
     return 'index.html?q=' + encodeURIComponent(ticker);
   }
 
-  function loadFavorites() {
+  function formatDate(d) {
+    if (!d) return '—';
+    try {
+      return new Date(d).toLocaleString('fr-FR', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return '—';
+    }
+  }
+
+  function renderStats(stats) {
+    if (!statsEl || !stats) return;
+    statsEl.innerHTML =
+      '<div class="dashboard-stat-card">' +
+      '<span class="dashboard-stat-value">' + stats.count + '</span>' +
+      '<span class="dashboard-stat-label">Favoris</span></div>' +
+      '<div class="dashboard-stat-card">' +
+      '<span class="dashboard-stat-value">' + (stats.with_score || 0) + '</span>' +
+      '<span class="dashboard-stat-label">Avec notation</span></div>' +
+      '<div class="dashboard-stat-card">' +
+      '<span class="dashboard-stat-value">' +
+      (stats.average_score != null ? stats.average_score.toFixed(1) : '—') +
+      '</span>' +
+      '<span class="dashboard-stat-label">Score moyen</span></div>';
+  }
+
+  function loadDashboard() {
     if (!token) {
       if (loginRequired) loginRequired.hidden = false;
       if (content) content.hidden = true;
@@ -21,9 +53,9 @@
     }
     if (loginRequired) loginRequired.hidden = true;
     if (content) content.hidden = false;
-    if (listEl) listEl.innerHTML = '';
+    if (tbody) tbody.innerHTML = '';
 
-    fetch('/api/favorites', {
+    fetch('/api/favorites/dashboard', {
       headers: { Authorization: 'Bearer ' + token },
     })
       .then(function (res) {
@@ -31,55 +63,63 @@
           window.simplifiedAuth?.removeToken?.();
           if (loginRequired) loginRequired.hidden = false;
           if (content) content.hidden = true;
-          return { favorites: [] };
+          return null;
         }
         return res.json();
       })
       .then(function (data) {
-        const favorites = data.favorites || [];
-        if (metaEl) metaEl.textContent = favorites.length + ' favori(s).';
-        if (emptyEl) emptyEl.hidden = favorites.length > 0;
+        if (!data) return;
+        const items = data.items || [];
+        renderStats(data.stats);
+        if (metaEl) {
+          metaEl.textContent =
+            items.length + ' action(s) dans votre watchlist.' +
+            (data.isPremium ? ' Compte Premium actif.' : '');
+        }
+        if (premiumHint) premiumHint.hidden = !!data.isPremium;
+        if (emptyEl) emptyEl.hidden = items.length > 0;
 
-        if (!listEl) return;
-        favorites.forEach(function (item) {
-          const li = document.createElement('li');
-          li.className = 'favoris-item';
-          li.innerHTML =
-            '<div class="favoris-item-info">' +
-            '<span class="favoris-item-ticker">' + escapeHtml(item.ticker) + '</span>' +
-            (item.name ? '<br><span class="favoris-item-name">' + escapeHtml(item.name) + '</span>' : '') +
-            '</div>' +
-            '<div class="favoris-item-actions">' +
-            '<a href="' + getAnalysisUrl(item.ticker) + '" class="favoris-btn-analyze">Analyser</a>' +
-            '<button type="button" class="favoris-btn-remove" data-ticker="' + escapeHtml(item.ticker) + '" aria-label="Retirer des favoris">Retirer</button>' +
-            '</div>';
-          listEl.appendChild(li);
-
-          const removeBtn = li.querySelector('.favoris-btn-remove');
-          if (removeBtn) {
-            removeBtn.addEventListener('click', function () {
-              removeFavorite(item.ticker, li);
-            });
-          }
+        if (!tbody) return;
+        items.forEach(function (item) {
+          const tr = document.createElement('tr');
+          const score =
+            item.score_simplifie != null
+              ? '<span class="dashboard-score">' + Number(item.score_simplifie).toFixed(1) + '</span>'
+              : '<span class="dashboard-score dashboard-score--na">—</span>';
+          tr.innerHTML =
+            '<td><code>' + escapeHtml(item.ticker) + '</code></td>' +
+            '<td>' + escapeHtml(item.name || item.ticker) + '</td>' +
+            '<td>' + escapeHtml(item.secteur || '—') + '</td>' +
+            '<td>' + score + '</td>' +
+            '<td class="dashboard-date">' + escapeHtml(formatDate(item.date_calcul)) + '</td>' +
+            '<td class="dashboard-actions">' +
+            '<a href="' + getAnalysisUrl(item.ticker) + '" class="favoris-btn-analyze">Analyser</a> ' +
+            '<button type="button" class="favoris-btn-remove" data-ticker="' +
+            escapeHtml(item.ticker) +
+            '">Retirer</button></td>';
+          tbody.appendChild(tr);
+          tr.querySelector('.favoris-btn-remove')?.addEventListener('click', function () {
+            removeFavorite(item.ticker, tr);
+          });
         });
       })
       .catch(function () {
-        if (metaEl) metaEl.textContent = 'Erreur lors du chargement.';
+        if (metaEl) metaEl.textContent = 'Erreur lors du chargement du dashboard.';
       });
   }
 
-  function removeFavorite(ticker, listItem) {
+  function removeFavorite(ticker, row) {
     if (!token) return;
     fetch('/api/favorites/' + encodeURIComponent(ticker), {
       method: 'DELETE',
       headers: { Authorization: 'Bearer ' + token },
     })
-      .then(function (res) { return res.json(); })
+      .then(function (res) {
+        return res.json();
+      })
       .then(function () {
-        if (listItem && listItem.parentNode) listItem.remove();
-        const items = listEl ? listEl.querySelectorAll('.favoris-item') : [];
-        if (metaEl) metaEl.textContent = items.length + ' favori(s).';
-        if (emptyEl) emptyEl.hidden = items.length > 0;
+        if (row && row.parentNode) row.remove();
+        loadDashboard();
       })
       .catch(function () {});
   }
@@ -92,8 +132,8 @@
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', loadFavorites);
+    document.addEventListener('DOMContentLoaded', loadDashboard);
   } else {
-    loadFavorites();
+    loadDashboard();
   }
 })();
