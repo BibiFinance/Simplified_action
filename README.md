@@ -47,7 +47,7 @@ Simplifiedaction/
 
 | Méthode | Route | Description |
 |---------|--------|-------------|
-| GET | `/api/search?q=...` | Recherche (nom ou ticker) → Finnhub + score calculé ; cache 10 min. Sans clé = simulation. |
+| GET | `/api/search?q=...` | Recherche (nom ou ticker) → Finnhub + score calculé ; cache 10 min. Si PostgreSQL configuré, historise l’action et la notation en BDD. Sans clé = simulation. |
 | GET | `/api/news?ticker=...` | Actualités RSS Yahoo Finance pour le ticker (ex. AAPL) |
 | POST | `/auth/register` | Inscription (email, password) → JWT |
 | POST | `/auth/login` | Connexion (email, password) → JWT |
@@ -67,8 +67,9 @@ Mots de passe hashés avec **Argon2** (ES02). Session = **JWT** (7 jours). Compt
 - **Backend** : `POST /api/stripe/create-checkout-session` (auth), `POST /api/stripe/webhook` (body brut).
 - **.env** : `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_PRICE_ID` (obligatoire), `STRIPE_WEBHOOK_SECRET` (pour mettre à jour la BDD).
 - **Stripe Dashboard** : créer un **Produit** + **Prix** récurrent (ex. 9,99 €/mois), copier l’id du prix (`price_xxx`) dans `STRIPE_PRICE_ID`. Pour le webhook : URL `https://ton-domaine.com/api/stripe/webhook`, événements `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`.
-- **Compte** : `GET /auth/me` retourne `isPremium: true/false`. La table `stripe_subscriptions` est créée automatiquement si BDD configurée.
+- **Compte** : `GET /auth/me` retourne `isPremium: true/false`. La table `stripe_subscriptions` est créée automatiquement si BDD configurée. Au retour de Stripe Checkout, `POST /api/stripe/verify-session` active le Premium sans attendre le webhook (utile en local).
 
 ## Suite du projet
 
 - **Étape 7** : Favoris + dashboard.
+- **Étape 8** : Formulaire de contact (Formspree) intégré (`public/contact.html`).

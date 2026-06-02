@@ -1,0 +1,228 @@
+===============================================================================
+CONDITIONS DE REALISATION ET RESSOURCES UTILISEES
+Projet : SimplifiedAction
+BTS SIO SLAM - Epreuve E6
+===============================================================================
+
+
+INTRODUCTION
+------------
+
+Ce document presente :
+1) Les conditions de realisation de la solution (ressources fournies et
+   resultats attendus),
+2) Les ressources documentaires, materielles et logicielles mobilisees.
+
+Il est redige pour alimenter la fiche descriptive E6 (option SLAM).
+
+
+===============================================================================
+PARTIE 1 - CONDITIONS DE REALISATION (RESSOURCES FOURNIES, RESULTATS ATTENDUS)
+===============================================================================
+
+
+1.1 Besoin initial
+------------------
+
+Le besoin de depart etait de concevoir une application web permettant
+d'acceder simplement a des informations boursieres, avec une presentation
+adaptee a un public non expert.
+
+Constat initial :
+- Les plateformes financieres classiques sont souvent complexes pour un
+  utilisateur debutant.
+- L'utilisateur a besoin d'un indicateur de synthese pour orienter sa lecture
+  des donnees (score simplifie).
+- Il faut centraliser recherche, actualites et informations de compte dans une
+  interface unique et lisible.
+
+Le projet devait donc proposer :
+- une recherche d'action (nom ou ticker),
+- un resultat interpretable rapidement (score, rendement, risque),
+- une experience utilisateur claire sur ordinateur et mobile.
+
+
+1.2 Objectifs fonctionnels
+--------------------------
+
+Objectifs principaux atteints par la solution :
+
+1) Recherche d'actions
+   - Recherche par nom d'entreprise ou symbole boursier.
+   - Recuperation des donnees marche via API externe.
+
+2) Analyse simplifiee
+   - Calcul d'un score simplifie de 0 a 10.
+   - Affichage des indicateurs rendement/risque.
+   - Affichage d'actualites financieres associees.
+
+3) Gestion des comptes
+   - Inscription, connexion, deconnexion.
+   - Session securisee avec JWT.
+   - Page "Mon compte" avec statut utilisateur.
+
+4) Gestion des favoris
+   - Ajout/suppression de valeurs en watchlist.
+   - Consultation de la liste des favoris.
+
+5) Version premium
+   - Parcours d'abonnement via Stripe Checkout.
+   - Mise a jour du statut premium en base de donnees (webhook Stripe).
+
+6) Donnees et qualite
+   - Persistance PostgreSQL (avec mode memoire de secours).
+   - Tests automatises unitaires et d'integration API.
+
+
+1.3 Type de projet
+------------------
+
+Nature du projet :
+- Type : creation complete d'une solution applicative web.
+- Cadre : projet de formation BTS SIO SLAM (E6).
+- Evolution : enrichissements progressifs (favoris, S&P 500, Stripe, tests,
+  documentation).
+
+Caracteristiques techniques :
+- Architecture client-serveur (frontend statique + API backend Express).
+- Integration de services externes (Finnhub, RSS Yahoo Finance, Stripe).
+- Base relationnelle PostgreSQL.
+
+Resultats attendus (et obtenus) :
+- Application exploitable localement, stable et demonstrable.
+- Fonctions principales operationnelles (recherche, auth, favoris, premium).
+- Documentation technique exploitable pour l'oral E6.
+
+
+1.4 Schéma a inserer dans cette partie ?
+----------------------------------------
+
+Oui, c'est recommande mais pas obligatoire.
+
+Schema le plus pertinent ici :
+- Type : schema de contexte (aussi appele schema "besoin / acteurs / systeme")
+- Format : bloc-fleches simple (pas besoin d'UML strict)
+- Contenu : Utilisateur -> SimplifiedAction -> API externes + Base de donnees
+
+Pourquoi :
+- Il montre rapidement le besoin, les acteurs et les interactions globales.
+- Il est plus adapte a la rubrique "conditions de realisation" qu'un UML
+  detaille.
+
+Ou le placer :
+- A la fin de la PARTIE 1, juste apres "Type de projet"
+  OU en annexe A avec un renvoi dans le texte.
+
+
+===============================================================================
+PARTIE 2 - DESCRIPTION DES RESSOURCES DOCUMENTAIRES, MATERIELLES ET LOGICIELLES
+===============================================================================
+
+
+2.1 Ressources documentaires
+----------------------------
+
+Documentation produite et exploitee :
+
+- README du projet (installation, lancement, structure).
+- Documentation technique E6 :
+  - FICHE_DESCRIPTIVE_E6
+  - GESTION_DES_DONNEES
+  - SERVICES_EXTERNES_ET_GESTION_DE_VERSION
+  - MODALITES_ACCES_PRODUCTIONS_DOCUMENTATION
+  - DESCRIPTIF_REALISATION_PROFESSIONNELLE_E6
+- Modelisation de la base :
+  - fichier DBML
+  - MCD Merise
+- Documentation des tests automatises (Jest + supertest).
+- Historique Git/GitHub pour la tracabilite des evolutions.
+
+Apport :
+- Facilite la maintenance, la demonstration et la justification des choix
+  techniques devant le jury.
+
+
+2.2 Environnement de developpement
+----------------------------------
+
+Environnement type utilise :
+
+- Systeme d'exploitation : Windows 10/11
+- IDE / editeur : Visual Studio Code / Cursor
+- Runtime : Node.js (>= 18)
+- Gestionnaire de paquets : npm
+- Base de donnees : PostgreSQL
+- Outils de tests : Jest + supertest
+- Navigateur de test : Chrome / Edge / Firefox
+- Gestion de versions : Git + GitHub
+
+Configuration locale :
+- Variables d'environnement dans .env
+- Separation stricte des secrets (non versionnes)
+- Lancement local via npm start
+
+
+2.3 Technologies utilisees
+--------------------------
+
+Frontend :
+- HTML5
+- CSS3
+- JavaScript (vanilla)
+
+Backend :
+- Node.js
+- Express
+- Middlewares : CORS, JSON parser
+- Authentification : JWT
+- Hashage mot de passe : Argon2
+
+Donnees :
+- PostgreSQL via driver pg
+- SQL relationnel (tables, contraintes, requetes parametrees)
+
+Services externes :
+- Finnhub (donnees boursieres)
+- Yahoo Finance RSS (actualites)
+- Stripe (abonnements premium)
+
+Qualite :
+- Tests unitaires et integration API (Jest + supertest)
+- Documentation technique versionnee
+
+
+2.4 Schéma a inserer dans cette partie ?
+----------------------------------------
+
+Oui, recommande.
+
+Schema le plus utile :
+- Type : schema d'architecture technique (3 couches)
+  Frontend -> Backend Express -> PostgreSQL
+  + connexions Backend -> Finnhub / RSS / Stripe
+
+UML ou non ?
+- UML n'est pas obligatoire ici.
+- Un schema d'architecture clair (blocs + fleches) suffit largement pour l'E6.
+- Si tu veux un UML, choisis un diagramme de composants (optionnel).
+
+Ou le placer ?
+- Dans la PARTIE 2, juste apres "Technologies utilisees"
+  OU en annexe B (avec renvoi dans le texte).
+
+
+===============================================================================
+SYNTHESE
+===============================================================================
+
+Le projet a ete realise avec un environnement coherent, des technologies
+adaptees au besoin, et une progression documentee. Les ressources mobilisees
+permettent de justifier les competences du bloc 2, notamment :
+- concevoir et developper une solution applicative,
+- gerer les donnees,
+- tester et documenter une solution,
+- maintenir une application evolutive.
+
+===============================================================================
+FIN DU DOCUMENT
+===============================================================================

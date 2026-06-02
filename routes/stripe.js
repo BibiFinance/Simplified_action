@@ -26,6 +26,42 @@ function authMiddleware(req, res, next) {
   }
 }
 
+async function syncSubscriptionForUser(userId, customerId, subscriptionId) {
+  if (!db.isConfigured()) {
+    console.warn('DATABASE_URL manquant : abonnement Stripe non enregistré');
+    return false;
+  }
+  if (!subscriptionId) return false;
+
+  if (customerId) await db.updateUserStripeCustomerId(userId, customerId);
+
+  const sub = await stripe.subscriptions.retrieve(subscriptionId);
+  await db.saveSubscription(
+    userId,
+    sub.id,
+    sub.items?.data[0]?.price?.id,
+    sub.status,
+    sub.current_period_end
+  );
+  return sub.status === 'active' || sub.status === 'trialing';
+}
+
+async function syncFromCheckoutSession(session, expectedUserId) {
+  const metadataUserId = session.metadata?.user_id || session.subscription_data?.metadata?.user_id;
+  if (metadataUserId && String(metadataUserId) !== String(expectedUserId)) {
+    const err = new Error('Session incompatible avec ce compte.');
+    err.status = 403;
+    throw err;
+  }
+
+  const paid = session.payment_status === 'paid' || session.status === 'complete';
+  if (!paid) return { synced: false, pending: true };
+
+  await syncSubscriptionForUser(expectedUserId, session.customer, session.subscription);
+  const subscription = await db.getActiveSubscriptionByUserId(expectedUserId);
+  return { synced: true, isPremium: !!subscription };
+}
+
 // POST /api/stripe/create-checkout-session — créé une session Stripe Checkout (abonnement)
 router.post('/create-checkout-session', authMiddleware, async (req, res) => {
   const priceId = process.env.STRIPE_PRICE_ID;
@@ -47,7 +83,7 @@ router.post('/create-checkout-session', authMiddleware, async (req, res) => {
     const sessionParams = {
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: baseUrl + '/compte.html?success=1',
+      success_url: baseUrl + '/compte.html?success=1&session_id={CHECKOUT_SESSION_ID}',
       cancel_url: baseUrl + '/abonnements.html?cancel=1',
       subscription_data: { metadata: { user_id: String(userId) } },
       metadata: { user_id: String(userId) },
@@ -79,6 +115,34 @@ router.post('/create-checkout-session', authMiddleware, async (req, res) => {
   }
 });
 
+// POST /api/stripe/verify-session — confirme le paiement au retour de Stripe Checkout
+router.post('/verify-session', authMiddleware, async (req, res) => {
+  const sessionId = req.body?.session_id;
+  if (!sessionId) {
+    return res.status(400).json({ error: 'session_id requis.' });
+  }
+  if (!db.isConfigured()) {
+    return res.status(503).json({
+      error: 'Base de données non configurée. Définissez DATABASE_URL dans .env pour activer Premium.',
+    });
+  }
+
+  try {
+    const session = await stripe.checkout.sessions.retrieve(String(sessionId));
+    const result = await syncFromCheckoutSession(session, req.user.sub);
+    if (result.pending) {
+      return res.json({ isPremium: false, pending: true });
+    }
+    return res.json({ isPremium: result.isPremium });
+  } catch (err) {
+    if (err.status === 403) {
+      return res.status(403).json({ error: err.message });
+    }
+    console.error('Stripe verify-session:', err.message);
+    return res.status(500).json({ error: 'Impossible de vérifier le paiement.' });
+  }
+});
+
 // POST /api/stripe/webhook — reçu par Stripe (body brut pour signature)
 function handleWebhook(req, res) {
   const sig = req.headers['stripe-signature'];
@@ -107,17 +171,7 @@ function handleWebhook(req, res) {
         let uid = userId ? parseInt(userId, 10) : null;
         if (!uid && customerId) uid = await db.getUserIdByStripeCustomerId(customerId);
         if (uid) {
-          if (customerId) await db.updateUserStripeCustomerId(uid, customerId);
-          if (subscriptionId) {
-            const sub = await stripe.subscriptions.retrieve(subscriptionId);
-            await db.saveSubscription(
-              uid,
-              sub.id,
-              sub.items?.data[0]?.price?.id,
-              sub.status,
-              sub.current_period_end
-            );
-          }
+          await syncSubscriptionForUser(uid, customerId, subscriptionId);
         }
       }
     }
@@ -127,13 +181,7 @@ function handleWebhook(req, res) {
       if (!db.isConfigured()) return;
       const userId = await db.getUserIdByStripeCustomerId(sub.customer);
       if (userId) {
-        await db.saveSubscription(
-          userId,
-          sub.id,
-          sub.items?.data[0]?.price?.id,
-          sub.status,
-          sub.current_period_end
-        );
+        await syncSubscriptionForUser(userId, sub.customer, sub.id);
       }
     }
   })().catch((e) => console.error('Webhook handler:', e));

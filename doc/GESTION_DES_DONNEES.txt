@@ -1,0 +1,342 @@
+===============================================================================
+         GESTION DES DONNEES - Projet SimplifiedAction
+         BTS SIO SLAM - Dossier technique E6
+===============================================================================
+
+
+1. CHOIX DU SGBD
+
+Le projet utilise PostgreSQL (version 14+) comme systeme de gestion de base
+de donnees relationnelle
+
+Justification du choix :
+
+- Les donnees du projet sont structurees et relationnelles : utilisateurs,
+  abonnements, favoris, actions, notations, actualites. 
+  Les relations entre ces entites (cles etrangeres, contraintes d'unicite, jointures) sont
+  naturellement exprimees en SQL.
+- Les contraintes d'integrite (UNIQUE, NOT NULL, FOREIGN KEY) garantissent
+  la coherence des donnees (ex. un abonnement est toujours lie a un
+  utilisateur existant, un favori a un couple utilisateur/action unique).
+- PostgreSQL est un SGBD open source, mature, largement utilise en
+  production et conforme aux attentes du referentiel BTS SIO (modelisation
+  relationnelle, requetes SQL, normalisation).
+- Le driver Node.js "pg" offre un acces fiable et performant depuis le
+  backend Express.
+
+Pourquoi pas MongoDB ? Les donnees ne sont pas de type "document variable" ;
+le modele relationnel est plus adapte aux contraintes metier du projet.
+
+
+2. SCHEMA DE LA BASE DE DONNEES
+--------------------------------
+
+Le schema comporte les tables suivantes :
+
++----------------------------------------------------------------------+
+| TABLE         | CLE PRIMAIRE | DESCRIPTION                           |
++----------------------------------------------------------------------+
+| users         | id (SERIAL)  | Comptes utilisateurs                  |
+| stripe_sub... | id (SERIAL)  | Abonnements premium (Stripe)          |
+| actions       | id (SERIAL)  | Actions boursieres (ticker, secteur)  |
+| notations     | id (SERIAL)  | Historique des scores calcules        |
+| favoris       | id (SERIAL)  | Watchlist (utilisateur <-> action)     |
+| flux_news     | id (SERIAL)  | Actualites financieres (RSS)          |
+| sp500_comp... | symbol (PK)  | Referentiel S&P 500 (liste statique)  |
++----------------------------------------------------------------------+
+
+
+2.1 TABLE users
+
+  CREATE TABLE users (
+      id              SERIAL PRIMARY KEY,
+      email           VARCHAR(255) UNIQUE NOT NULL,
+      password_hash   VARCHAR(255) NOT NULL,
+      stripe_customer_id VARCHAR(255) UNIQUE,
+      created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  - email : adresse de connexion, indexee en unicite.
+  - password_hash : hash Argon2 du mot de passe (jamais stocke en clair).
+  - stripe_customer_id : identifiant client Stripe (lie apres le premier
+    paiement).
+
+
+2.2 TABLE stripe_subscriptions
+
+  CREATE TABLE stripe_subscriptions (
+      id                      SERIAL PRIMARY KEY,
+      user_id                 INT NOT NULL REFERENCES users(id),
+      stripe_subscription_id  VARCHAR(255) UNIQUE NOT NULL,
+      stripe_price_id         VARCHAR(255),
+      status                  VARCHAR(50),
+      current_period_end      TIMESTAMP,
+      created_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  - user_id : cle etrangere vers users.id (integrite referentielle).
+  - status : 'active', 'canceled', 'past_due', etc.
+  - Permet de determiner si un utilisateur est premium via une requete
+    filtrant sur status IN ('active', 'trialing') et current_period_end.
+
+
+2.3 TABLE actions
+
+  CREATE TABLE actions (
+      id          SERIAL PRIMARY KEY,
+      ticker      VARCHAR(20) UNIQUE NOT NULL,
+      entreprise  VARCHAR(255) NOT NULL,
+      secteur     VARCHAR(120),
+      rendement   FLOAT,
+      risque      FLOAT
+  );
+
+  - ticker : symbole boursier unique (ex. AAPL, MSFT).
+  - rendement / risque : indicateurs financiers calcules.
+
+
+2.4 TABLE notations
+
+  CREATE TABLE notations (
+      id              SERIAL PRIMARY KEY,
+      action_id       INT REFERENCES actions(id),
+      note_globale    FLOAT,
+      version_algo    VARCHAR(20),
+      date_calcul     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  - note_globale : score simplifie entre 0 et 10.
+  - version_algo : identifiant de la version de l'algorithme de scoring.
+  - Historise les calculs successifs pour une meme action.
+
+
+2.5 TABLE favoris
+
+  CREATE TABLE favorites (
+      id          SERIAL PRIMARY KEY,
+      user_id     INT NOT NULL REFERENCES users(id),
+      ticker      VARCHAR(20) NOT NULL,
+      name        VARCHAR(255),
+      created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, ticker)
+  );
+
+  - Contrainte UNIQUE sur (user_id, ticker) : un utilisateur ne peut
+    ajouter le meme ticker qu'une seule fois.
+
+
+2.6 TABLE flux_news
+
+  CREATE TABLE flux_news (
+      id          SERIAL PRIMARY KEY,
+      titre       VARCHAR(500),
+      source      VARCHAR(255),
+      url         VARCHAR(500) UNIQUE,
+      resume      TEXT,
+      date_publi  TIMESTAMP,
+      action_id   INT REFERENCES actions(id)
+  );
+
+  - url : unicite pour eviter les doublons d'articles.
+  - action_id : liaison optionnelle vers une action.
+
+
+2.7 TABLE sp500_companies
+
+  CREATE TABLE sp500_companies (
+      symbol      VARCHAR(20) PRIMARY KEY,
+      name        VARCHAR(255) NOT NULL,
+      sector      VARCHAR(120),
+      industry    VARCHAR(120),
+      is_pro      BOOLEAN DEFAULT FALSE,
+      updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  - Referentiel statique des entreprises du S&P 500.
+  - Rechargee periodiquement via un fichier CSV (cron ou seed).
+
+
+3. RELATIONS ET INTEGRITE REFERENTIELLE
+---------------------------------------
+
+  users  ──< stripe_subscriptions   (1,n : un user peut avoir 0 ou n
+                                      abonnements)
+  users  ──< favorites              (0,n : un user peut avoir 0 ou n
+                                      favoris)
+  actions ──< notations             (0,n : une action peut avoir 0 ou n
+                                      scores)
+  actions ──< flux_news             (0,n : une action peut etre liee a
+                                      0 ou n actualites)
+  actions ──< favorites             (0,n : une action peut etre en
+                                      favoris de 0 ou n users)
+
+  Toutes les cles etrangeres sont declarees avec REFERENCES pour
+  garantir l'integrite referentielle a la suppression et a l'insertion.
+
+
+4. REQUETES SQL PRINCIPALES UTILISEES DANS L'APPLICATION
+---------------------------------------------------------
+
+4.1 Authentification
+
+  -- Rechercher un utilisateur par email (connexion)
+  SELECT id, email, password_hash, created_at
+  FROM users
+  WHERE LOWER(email) = LOWER($1);
+
+  -- Creer un utilisateur (inscription)
+  INSERT INTO users (email, password_hash)
+  VALUES (LOWER($1), $2)
+  RETURNING id, email, created_at;
+
+  -- Recuperer un utilisateur par id (route /auth/me)
+  SELECT id, email, stripe_customer_id
+  FROM users WHERE id = $1;
+
+4.2 Abonnements (Stripe)
+
+  -- Enregistrer ou mettre a jour un abonnement
+  INSERT INTO stripe_subscriptions
+      (user_id, stripe_subscription_id, stripe_price_id, status, current_period_end)
+  VALUES ($1, $2, $3, $4, $5)
+  ON CONFLICT (stripe_subscription_id)
+  DO UPDATE SET status = $4, current_period_end = $5, stripe_price_id = $3;
+
+  -- Verifier si un utilisateur est premium (abonnement actif)
+  SELECT id, status, current_period_end
+  FROM stripe_subscriptions
+  WHERE user_id = $1
+    AND status IN ('active', 'trialing')
+    AND (current_period_end IS NULL OR current_period_end > NOW())
+  ORDER BY current_period_end DESC NULLS LAST
+  LIMIT 1;
+
+  -- Retrouver un utilisateur par son ID client Stripe (webhook)
+  SELECT id FROM users WHERE stripe_customer_id = $1;
+
+  -- Mettre a jour le stripe_customer_id d'un utilisateur
+  UPDATE users SET stripe_customer_id = $1 WHERE id = $2 RETURNING id;
+
+4.3 Favoris
+
+  -- Ajouter un favori (ou mettre a jour le nom si deja present)
+  INSERT INTO favorites (user_id, ticker, name)
+  VALUES ($1, $2, $3)
+  ON CONFLICT (user_id, ticker) DO UPDATE SET name = $3
+  RETURNING id, ticker, name;
+
+  -- Lister les favoris d'un utilisateur (du plus recent au plus ancien)
+  SELECT ticker, name
+  FROM favorites
+  WHERE user_id = $1
+  ORDER BY created_at DESC;
+
+  -- Supprimer un favori
+  DELETE FROM favorites
+  WHERE user_id = $1 AND UPPER(TRIM(ticker)) = UPPER(TRIM($2))
+  RETURNING id;
+
+4.4 Liste S&P 500 (recherche, tri, pagination)
+
+  -- Lister les entreprises avec filtre, tri et pagination
+  SELECT symbol, name, sector, industry, is_pro
+  FROM sp500_companies
+  WHERE name ILIKE $1 OR symbol ILIKE $1
+  ORDER BY name ASC
+  LIMIT $2 OFFSET $3;
+
+  -- Compter le nombre total (pour la pagination)
+  SELECT COUNT(*)::int AS total
+  FROM sp500_companies
+  WHERE name ILIKE $1 OR symbol ILIKE $1;
+
+  -- Rafraichir la liste (transaction : vider + re-inserer)
+  BEGIN;
+  DELETE FROM sp500_companies;
+  INSERT INTO sp500_companies (symbol, name, sector, industry)
+  VALUES ($1, $2, $3, $4)
+  ON CONFLICT (symbol)
+  DO UPDATE SET name = $2, sector = $3, industry = $4,
+                updated_at = CURRENT_TIMESTAMP;
+  COMMIT;
+
+
+5. ACCES AUX DONNEES DEPUIS L'APPLICATION
+------------------------------------------
+
+Le module lib/db.js centralise tous les acces a la base de donnees :
+
+  - Connexion via la variable d'environnement DATABASE_URL (PostgreSQL).
+  - Si DATABASE_URL est absent, l'application fonctionne en MODE MEMOIRE
+    (donnees en RAM, non persistees) pour le developpement et les tests.
+  - Les tables sont creees automatiquement au demarrage si elles n'existent
+    pas (CREATE TABLE IF NOT EXISTS), ce qui facilite le deploiement.
+  - Les requetes utilisent des parametres prepares ($1, $2...) pour
+    prevenir les injections SQL.
+  - Le module exporte des fonctions metier (getUserByEmail, createUser,
+    addFavorite, getSp500List...) appelees par les routes Express.
+
+Architecture d'acces :
+
+  Routes Express (routes/)
+       |
+       v
+  Module db (lib/db.js)   -->  Pool de connexions PostgreSQL (pg)
+       |                              |
+       v                              v
+  Fonctions metier            Base de donnees PostgreSQL
+  (getUserByEmail,
+   addFavorite,
+   saveSubscription...)
+
+
+6. CONTROLE DES ACCES AUX DONNEES
+----------------------------------
+
+  - Les routes sensibles (favoris, profil, abonnement) sont protegees
+    par un middleware d'authentification JWT. Seul un utilisateur connecte
+    avec un token valide peut acceder a ses donnees.
+  - Les mots de passe ne sont jamais stockes en clair : hachage Argon2
+    a l'inscription, verification a la connexion.
+  - Les cles API (Finnhub, Stripe) sont stockees dans un fichier .env
+    cote serveur, jamais exposees au client.
+  - Les requetes SQL utilisent des parametres prepares pour empecher
+    les injections SQL.
+  - La contrainte UNIQUE sur (user_id, ticker) dans la table favorites
+    empeche les doublons au niveau de la base.
+
+
+7. SAUVEGARDE ET MODE DEGRADÉ
+-------------------------------
+
+  - En production, la base PostgreSQL peut etre sauvegardee avec
+    pg_dump (sauvegarde logique) ou via les outils de l'hebergeur.
+  - En cas d'absence de base de donnees (variable DATABASE_URL non
+    definie), l'application bascule automatiquement en mode memoire :
+    les utilisateurs et favoris sont stockes en RAM. Ce mode est utilise
+    pour le developpement local et les tests automatises.
+  - Les donnees externes (cours, profils) sont mises en cache cote
+    serveur (Map en memoire, TTL 5 a 10 minutes) pour limiter les
+    appels API et assurer un temps de reponse rapide meme si l'API
+    externe est temporairement indisponible.
+
+
+8. TYPES DE DONNEES UTILISES
+------------------------------
+
+  +------------------+---------------------------------------------------+
+  | Type PostgreSQL  | Usage dans le projet                              |
+  +------------------+---------------------------------------------------+
+  | SERIAL (INT)     | Identifiants auto-incrementes (id)                |
+  | VARCHAR(n)       | Email, ticker, nom, hash, identifiants Stripe     |
+  | TEXT             | Resume d'actualite (longueur variable)            |
+  | FLOAT / REAL     | Score, rendement, risque (valeurs approchees)     |
+  | BOOLEAN          | Drapeau is_pro (S&P 500)                          |
+  | TIMESTAMP        | Dates de creation, calcul, publication, expiration|
+  +------------------+---------------------------------------------------+
+
+
+===============================================================================
+  Document redige pour le dossier technique E6 - BTS SIO SLAM
+  Projet SimplifiedAction
+===============================================================================

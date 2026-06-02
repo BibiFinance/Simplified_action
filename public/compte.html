@@ -73,34 +73,68 @@
       const emailEl = document.getElementById('compte-email');
       const params = new URLSearchParams(window.location.search);
       const successParam = params.get('success');
+      const sessionId = params.get('session_id');
+      const successEl = document.getElementById('compte-success-msg');
 
       function renderProfile(data) {
         if (emailEl) emailEl.textContent = 'Connecté en tant que ' + (data.user?.email || '—');
         const premiumEl = document.getElementById('compte-premium');
         const accessEl = document.getElementById('compte-access');
-        if (premiumEl) {
-          if (data.isPremium) {
-            premiumEl.innerHTML = '<span class="badge badge--premium">Premium</span>';
-            premiumEl.className = 'compte-info compte-info--premium';
-            if (accessEl) {
-              accessEl.innerHTML = 'Vous avez accès aux <strong>meilleures notations</strong>, aux analyses détaillées et au mode expert.';
-              accessEl.className = 'compte-access compte-access--premium';
-            }
-          } else {
-            premiumEl.innerHTML = '<span class="badge badge--basic">Basic</span> (gratuit)';
-            premiumEl.className = 'compte-info compte-info--basic';
-            premiumEl.innerHTML += ' <a href="abonnements.html" class="btn btn--primary" style="margin-left:0.5rem;display:inline-block">S\'abonner</a>';
-            if (accessEl) {
-              accessEl.textContent = 'Pour accéder aux meilleures notations et aux analyses détaillées, passez en Premium.';
-              accessEl.className = 'compte-access';
-            }
+        if (!premiumEl) return;
+
+        if (data.isPremium) {
+          premiumEl.innerHTML = '<span class="badge badge--premium">Premium</span>';
+          premiumEl.className = 'compte-info compte-info--premium';
+          if (accessEl) {
+            accessEl.innerHTML = 'Vous avez accès aux <strong>meilleures notations</strong>, aux analyses détaillées et au mode expert.';
+            accessEl.className = 'compte-access compte-access--premium';
+            accessEl.hidden = false;
+          }
+        } else {
+          premiumEl.innerHTML = '<span class="badge badge--basic">Basic</span> (gratuit) <a href="abonnements.html" class="btn btn--primary" style="margin-left:0.5rem;display:inline-block">S\'abonner</a>';
+          premiumEl.className = 'compte-info compte-info--basic';
+          if (accessEl) {
+            accessEl.textContent = 'Pour accéder aux meilleures notations et aux analyses détaillées, passez en Premium.';
+            accessEl.className = 'compte-access';
+            accessEl.hidden = false;
           }
         }
       }
 
       function fetchProfile() {
         return fetch('/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
-          .then(function (res) { return res.json(); });
+          .then(function (res) {
+            if (!res.ok) throw new Error('profile');
+            return res.json();
+          });
+      }
+
+      function verifyCheckoutSession() {
+        if (!sessionId) return Promise.resolve(null);
+        return fetch('/api/stripe/verify-session', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ session_id: sessionId })
+        }).then(function (res) {
+          return res.json().then(function (data) {
+            return { ok: res.ok, data: data };
+          });
+        });
+      }
+
+      function showSuccessMessage(isPremium, verifyError) {
+        if (!successEl) return;
+        successEl.hidden = false;
+        if (verifyError) {
+          successEl.textContent = verifyError;
+          return;
+        }
+        successEl.textContent = isPremium
+          ? 'Votre compte est maintenant Premium. Vous avez accès aux meilleures notations.'
+          : 'Paiement reçu. Si votre statut ne passe pas à Premium, patientez quelques secondes et rechargez la page.';
       }
 
       if (!token) {
@@ -108,33 +142,37 @@
         if (loginRequired) loginRequired.hidden = false;
       } else {
         if (loginRequired) loginRequired.hidden = true;
-        if (successParam === '1') {
-          const successEl = document.getElementById('compte-success-msg');
-          if (successEl) {
-            successEl.textContent = 'Paiement reçu. Vérification de votre statut…';
-            successEl.hidden = false;
-          }
+        if (successParam === '1' && successEl) {
+          successEl.textContent = 'Paiement reçu. Vérification de votre statut…';
+          successEl.hidden = false;
         }
-        fetchProfile()
-          .then(function (data) {
-            renderProfile(data);
-            if (successParam === '1') {
-              setTimeout(function () {
-                fetchProfile().then(function (dataAgain) {
-                  renderProfile(dataAgain);
-                  const successEl = document.getElementById('compte-success-msg');
-                  if (successEl) {
-                    successEl.textContent = dataAgain.isPremium
-                      ? 'Votre compte est maintenant Premium. Vous avez accès aux meilleures notations.'
-                      : 'Paiement enregistré. Si votre statut ne passe pas à Premium, patientez quelques secondes et rechargez la page.';
-                  }
-                });
-              }, 2000);
+
+        verifyCheckoutSession()
+          .then(function (verifyResult) {
+            let verifyError = null;
+            if (verifyResult && !verifyResult.ok && verifyResult.data?.error) {
+              verifyError = verifyResult.data.error;
             }
+            return fetchProfile()
+              .then(function (data) {
+                renderProfile(data);
+                if (successParam === '1') {
+                  showSuccessMessage(!!data.isPremium, verifyError);
+                }
+                if (successParam === '1' && !data.isPremium && !verifyError) {
+                  return new Promise(function (resolve) {
+                    setTimeout(resolve, 2000);
+                  }).then(fetchProfile).then(function (dataAgain) {
+                    renderProfile(dataAgain);
+                    showSuccessMessage(!!dataAgain.isPremium, null);
+                  });
+                }
+              });
           })
           .catch(function () {
             if (emailEl) emailEl.textContent = 'Erreur lors du chargement du profil.';
           });
+
         document.getElementById('btn-logout-page')?.addEventListener('click', function () {
           window.simplifiedAuth?.removeToken?.();
           window.location.href = 'index.html';

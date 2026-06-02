@@ -53,6 +53,22 @@
     }
   }
 
+  function formatDataSource(data) {
+    if (data.source === 'finnhub' || data.temps_reel === true) {
+      return 'Données temps réel (Finnhub)';
+    }
+    if (data.source === 'cache') {
+      var age = data.cache_age_sec != null ? ' — cache ' + data.cache_age_sec + ' s' : '';
+      return data.temps_reel
+        ? 'Données Finnhub (mise en cache)' + age
+        : 'Données en cache (origine dégradée)' + age;
+    }
+    if (data.source === 'fallback') {
+      return 'Mode dégradé (données simulées, pas Finnhub)';
+    }
+    return '';
+  }
+
   function showError(message) {
     if (errorBox) errorBox.textContent = message;
     if (errorSection) errorSection.hidden = false;
@@ -91,6 +107,7 @@
           '<span class="score-label">Score simplifié</span>' +
           '<span class="score-value">' + (score != null ? score.toFixed(1) : '—') + '</span>' +
         '</div>' +
+        (data.source ? '<p class="card-action-meta card-action-source">' + formatDataSource(data) + '</p>' : '') +
         favoriteBtn +
       '</div>';
 

@@ -1,0 +1,214 @@
+===============================================================================
+  MODALITES D'ACCES AUX PRODUCTIONS ET A LEUR DOCUMENTATION
+  Projet : SimplifiedAction
+  BTS SIO SLAM - Epreuve E6
+===============================================================================
+
+
+1. OBJECTIF
+-----------
+
+Ce document precise les modalites d'acces :
+- aux productions (code source, base de donnees, application),
+- a la documentation technique et utilisateur,
+- aux elements necessaires pour la demonstration devant le jury.
+
+
+===============================================================================
+SOUS-PARTIE 1 : ACCES AU CODE
+
+1.1 Depot de code
+-----------------
+
+- Le code source est versionne avec Git et heberge sur GitHub.
+- Depot : https://github.com/BibiFinance/Simplified_action.git
+- Branche principale : main
+
+1.2 Organisation du projet
+--------------------------
+
+Principaux dossiers/fichiers :
+
+- public/        : interface web (HTML, CSS, JS)
+- routes/        : routes API Express (auth, search, stripe, favoris, sp500)
+- lib/           : logique metier (db, score, finnhub)
+- tests/         : tests automatises (Jest + supertest)
+- doc/           : documentation technique (MCD, gestion donnees, services, etc.)
+- app.js         : application Express exportee (utile pour les tests)
+- server.js      : point d'entree (demarrage du serveur)
+- package.json   : scripts npm et dependances
+
+1.3 Confidentialite et securite
+-------------------------------
+
+- Le fichier .env n'est pas versionne (informations sensibles).
+- Les secrets (JWT, API keys, identifiants BDD) restent en local.
+- Pour partager la configuration, utiliser un fichier modele (sans secrets).
+
+1.4 Prerequis techniques
+------------------------
+
+- Node.js >= 18
+- npm
+- PostgreSQL (optionnel mais recommande pour persistance)
+- Navigateur web recent (Chrome, Edge, Firefox)
+
+
+===============================================================================
+SOUS-PARTIE 2 : LANCEMENT DE L'APPLICATION
+===============================================================================
+
+2.1 Recuperation du projet
+--------------------------
+
+1) Cloner le depot :
+   git clone https://github.com/BibiFinance/Simplified_action.git
+
+2) Ouvrir un terminal dans le dossier :
+   cd Simplified_action
+
+3) Installer les dependances :
+   npm install
+
+2.2 Configuration locale
+------------------------
+
+Creer ou completer le fichier .env a la racine du projet avec, au minimum :
+
+- PORT=3000
+- JWT_SECRET=...
+- DATABASE_URL=postgresql://<utilisateur>:<mot_de_passe>@localhost:5432/simplifiedaction
+
+Variables optionnelles selon les fonctionnalites :
+
+- FINNHUB_API_KEY=...          (recherche/cours reels)
+- STRIPE_SECRET_KEY=...        (paiement premium)
+- STRIPE_PRICE_ID=...          (tarif Stripe)
+- STRIPE_WEBHOOK_SECRET=...    (mise a jour premium automatique via webhook)
+
+2.3 Demarrage
+-------------
+
+Commande de lancement :
+
+   npm start
+
+Resultat attendu :
+
+- Serveur accessible sur http://localhost:3000
+- Les routes API sont disponibles via /api/*
+- Les pages publiques sont servies depuis le dossier public/
+
+2.4 Modes de fonctionnement
+---------------------------
+
+- Mode PostgreSQL (recommande) :
+  les utilisateurs, abonnements et favoris sont persistes en base.
+
+- Mode memoire (degrade) :
+  si la BDD est absente/invalide, certaines donnees ne sont pas persistantes.
+
+
+===============================================================================
+SOUS-PARTIE 3 : DEMONSTRATION
+===============================================================================
+
+3.1 Parcours de demonstration conseille
+---------------------------------------
+
+1) Ouvrir l'accueil et presenter la finalite de SimplifiedAction.
+2) Rechercher une action (nom ou ticker).
+3) Montrer la note simplifiee, rendement, risque et actualites.
+4) Creer un compte puis se connecter.
+5) Ajouter une action aux favoris, afficher la page favoris.
+6) Ouvrir la page abonnements, simuler un paiement Stripe (mode test).
+7) Verifier le statut du compte sur la page "Mon compte" (Basic/Premium).
+
+3.2 Jeux de donnees / comptes de test
+-------------------------------------
+
+- Compte standard : creer via /inscription avec un email de test.
+- Paiement test Stripe : utiliser la carte de test 4242 4242 4242 4242.
+
+3.3 Documentation mobilisable pendant l'oral
+--------------------------------------------
+
+Documents utiles dans doc/ :
+
+- MCD_MERISE.md
+- GESTION_DES_DONNEES.txt
+- SERVICES_EXTERNES_ET_GESTION_DE_VERSION.txt
+- TESTS_AUTOMATISES.md
+- FICHE_DESCRIPTIVE_E6.md
+
+3.4 Verification de la qualite
+------------------------------
+
+Tests automatises : npm test
+
+Attendu :
+
+- Tests unitaires (score) passes  [tests/score.test.js – 6 tests]
+  - La fonction computeScore retourne bien les 4 champs attendus :
+    score_simplifie, rendement, risque, version_algo
+  - Sans donnee valide (null, objet vide, c non numerique) →
+    score = 5, rendement = 0, risque = 0.5 (valeurs de securite)
+  - Le score reste toujours entre 0 et 10 (cas extremes verifie)
+  - Une variation positive (dp > 0) produit un score plus eleve
+    qu'une variation nulle (comportement metier verifie)
+  - Le rendement est la valeur absolue de dp arrondie a 2 decimales
+  - Un profil optionnel (nom, secteur) est accepte sans erreur
+
+- Tests d'integration API passes  [tests/api.test.js – 18 tests]
+
+  GET /api/sp500/list
+  - Repond 200 avec les champs items, total, limit, offset
+  - Chaque element de la liste possede au moins symbol et name
+  - Accepte les parametres de filtrage q, sort, order, page, limit
+
+  GET /api/search
+  - Sans parametre q → 400 avec message d'erreur
+  - Avec q=AAPL → 200 et objet avec ticker, score_simplifie,
+    rendement, risque (donnees reelles ou fallback sans cle Finnhub)
+
+  POST /auth/register
+  - Corps vide (sans email ni mot de passe) → 400
+  - Inscription valide → 201 avec token JWT et user (id, email)
+  - Double inscription avec le meme email → 409
+
+  POST /auth/login
+  - Corps vide → 400
+  - Identifiants inexistants → 401
+  - Apres inscription : login avec les bons identifiants → 200
+    avec token JWT et user
+
+  GET /api/favorites
+  - Sans token Authorization → 401
+  - Avec token valide → 200 et tableau favorites
+
+  POST /api/favorites
+  - Sans token → 401
+  - Sans ticker dans le corps → 400
+  - Avec token et ticker (ex. MSFT) → 201 et objet favorite
+
+  DELETE /api/favorites/:ticker
+  - Sans token → 401
+  - Apres ajout : suppression avec token → 200 et removed: true
+
+- Bilan global affiche par Jest :
+  - Test Suites: 2 passed, 2 total
+  - Tests: 24 passed, 24 total
+
+3.5 Points d'attention pour le jury
+-----------------------------------
+
+- Montrer la separation front/back (public/ + routes/ + lib/)
+- Expliquer la securisation (JWT, hash Argon2, .env non versionne)
+- Expliquer les services externes (Finnhub, RSS, Stripe)
+- Expliquer la gestion des donnees (PostgreSQL, contraintes, persistance)
+- Expliquer le versionnement (commits GitHub et progression du projet)
+
+
+===============================================================================
+FIN DU DOCUMENT
+===============================================================================

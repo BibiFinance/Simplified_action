@@ -1,0 +1,336 @@
+===============================================================================
+DESCRIPTIF DE LA REALISATION PROFESSIONNELLE
+Projet : SimplifiedAction
+BTS SIO SLAM - Epreuve E6
+===============================================================================
+
+Contexte du projet
+------------------
+
+SimplifiedAction est une application web permettant d'analyser une action
+financiere de maniere simplifiee pour un public debutant. L'utilisateur peut
+rechercher une valeur (nom ou ticker), consulter un score simplifie (0 a 10),
+voir des indicateurs (rendement, risque), lire des actualites, gerer ses
+favoris et souscrire a une offre premium.
+
+La solution repose sur une architecture client-serveur :
+- Frontend : pages statiques HTML/CSS/JavaScript (vanilla)
+- Backend : Node.js + Express (API REST)
+- Donnees : PostgreSQL (avec mode memoire en fallback)
+- Services externes : Finnhub, Yahoo Finance RSS, Stripe
+
+
+1) ARCHITECTURE
+
+Description
+-----------
+
+L'application est organisee en couches :
+
+- Couche presentation : dossier public/ (pages, styles, scripts client)
+- Couche API : routes Express (auth, recherche, actualites, favoris, Stripe)
+- Couche metier : modules lib/ (calcul score, acces BDD, client Finnhub)
+- Couche donnees : PostgreSQL (users, subscriptions, favorites, etc.)
+
+Flux principal :
+1. Le navigateur envoie une requete HTTP au serveur Express.
+2. Le serveur traite la demande (metier + controle d'acces).
+3. Le serveur interroge la BDD et/ou un service externe.
+4. Le serveur renvoie une reponse JSON ou une page.
+
+Productions realisees (exemples)
+--------------------------------
+
+- Frontend : pages accueil, compte, abonnements, favoris, liste S&P 500.
+- API : routes /api/search, /api/news, /auth/*, /api/favorites/*,
+  /api/stripe/*.
+- Refactor de structure : separation app.js (app exportee) et server.js
+  (demarrage), utile pour les tests.
+
+Schema a inserer (a faire)
+--------------------------
+
+Oui, il faut inserer un schema. Le plus pertinent ici est :
+
+- Type : schema d'architecture applicative (diagramme de deploiement logique)
+- Format conseille : simple bloc-fleches (pas forcement UML strict)
+- Contenu minimal :
+  Navigateur -> Express API -> PostgreSQL
+  Express API -> Finnhub / Yahoo RSS / Stripe
+- Emplacement recommande :
+  juste apres cette section "Architecture" dans ton dossier technique
+  (ou en annexe A puis reference dans la section).
+
+Note : un UML "diagramme de composants" est possible, mais pas obligatoire.
+Pour l'E6, un schema clair et lisible est souvent plus efficace qu'un UML
+trop formel.
+
+
+2) SECURITE
+
+
+Description
+-----------
+
+Les mecanismes de securite implementes sont :
+
+- Authentification par JWT : token signe cote serveur.
+- Protection des routes sensibles (ex : favoris, profil utilisateur, paiement).
+- Hashage des mots de passe avec Argon2 (jamais de mot de passe en clair).
+- Secrets stockes dans .env (non versionne via .gitignore).
+- Requetes SQL parametrees (placeholders $1, $2...) contre l'injection SQL.
+- Verification de signature des webhooks Stripe.
+
+Productions realisees (exemples)
+--------------------------------
+
+- Middleware d'authentification reutilisable.
+- Route /auth/me avec verification du token.
+- Gestion du statut premium via abonnement Stripe en base.
+
+Schema a inserer (a faire)
+--------------------------
+
+Oui, recommande :
+
+- Type : schema de sequence d'authentification (login -> token -> acces route)
+- Option : mini schema webhook Stripe (event Stripe -> webhook -> MAJ BDD)
+- Emplacement recommande :
+  apres la section "Securite" ou en annexe B.
+
+Si tu manques de place, garde au moins le schema de sequence JWT, c'est le
+plus utile a l'oral.
+
+
+===============================================================================
+3) MODELISATION DES DONNEES
+===============================================================================
+
+Description
+-----------
+
+Le modele de donnees est relationnel (PostgreSQL) avec les principales tables :
+
+- users
+- stripe_subscriptions
+- actions
+- notations
+- favoris
+- flux_news
+- sp500_companies (table de referentiel)
+
+Les relations principales :
+- users 1,n stripe_subscriptions
+- users n,n actions via favoris
+- actions 1,n notations
+- actions 0,n flux_news
+
+Le choix PostgreSQL est justifie par :
+- la structure relationnelle forte des donnees,
+- les contraintes d'integrite (UNIQUE, FOREIGN KEY, NOT NULL),
+- la robustesse du moteur et la pertinence pour le referentiel BTS.
+
+Productions realisees (exemples)
+--------------------------------
+
+- Script SQL de structure (base du schema).
+- Modele DBML documente.
+- Module d'acces BDD (lib/db.js) avec creation de tables si necessaire.
+
+Schema a inserer (a faire)
+--------------------------
+
+Oui, indispensable dans cette partie :
+
+- Type prioritaire : MCD Merise (conforme au langage attendu en BTS)
+- Type complementaire utile : MLD relationnel (tables + PK/FK)
+- Emplacement recommande :
+  - MCD dans le corps du descriptif (section modelisation)
+  - MLD + DDL SQL en annexe C
+
+Donc : privilegie Merise pour l'E6, et ajoute UML seulement si ton
+etablissement le demande explicitement.
+
+
+===============================================================================
+4) TESTS REALISES
+===============================================================================
+
+Description
+-----------
+
+La validation repose sur :
+
+- Tests unitaires (Jest) pour la logique de calcul du score.
+- Tests d'integration API (Jest + supertest) pour les routes :
+  sp500, search, register/login, favoris.
+- Tests manuels de parcours utilisateur (inscription, login, favoris,
+  abonnement, verification du statut compte).
+
+Productions realisees (exemples)
+--------------------------------
+
+- tests/score.test.js
+- tests/api.test.js
+- tests/setup.js
+- Documentation des tests : doc/TESTS_AUTOMATISES.md
+
+Indicateurs presentables
+------------------------
+
+- Nombre de suites passees
+- Nombre de tests passes
+- Cas nominaux et cas d'erreur verifies (400, 401, 409, etc.)
+
+Schema a inserer (a faire)
+--------------------------
+
+Schema non obligatoire ici, mais recommande :
+
+- Type : tableau de couverture des tests (fonctionnalite / type de test / statut)
+- Emplacement : fin de section "Tests realises" ou annexe D.
+
+Ce tableau est souvent plus utile au jury qu'un UML de tests.
+
+
+===============================================================================
+5) ERGONOMIE
+===============================================================================
+
+Description
+-----------
+
+Les choix ergonomiques visent un public debutant :
+
+- Interface epuree avec vocabulaire simple.
+- Recherche unique (nom ou ticker) sans jargon obligatoire.
+- Score lisible (0-10) avec indicateurs explicites.
+- Navigation claire : Accueil, S&P 500, Favoris, Compte, Connexion.
+- Feedback utilisateur : messages succes/erreur, etat de chargement.
+- Responsive design : affichage adapte mobile/tablette/desktop.
+
+Productions realisees (exemples)
+--------------------------------
+
+- Ajustements CSS (lisibilite, blocs d'information, etats visuels).
+- Clarification page compte (statut Basic/Premium + message post-paiement).
+- Correctifs de navigation selon etat connecte/non connecte.
+
+Schema a inserer (a faire)
+--------------------------
+
+Pas un UML. Pour l'ergonomie, le plus pertinent est :
+
+- Captures d'ecran annotees (desktop + mobile)
+- Option : mini wireframe comparatif avant/apres
+- Emplacement recommande :
+  section Ergonomie (2 a 4 captures max), detail complet en annexe E.
+
+
+===============================================================================
+6) EXPLICATION DETAILLEE DE LA NOTATION DES ACTIONS
+===============================================================================
+
+Description
+-----------
+
+La notation des actions est concue pour un public debutant, avec une lecture
+simple et pedagogique :
+
+- score_simplifie : note de 0 a 10
+- rendement : variation en pourcentage (valeur absolue)
+- risque : indicateur de volatilite normalise entre 0 et 1
+
+La logique est centralisee dans lib/score.js (fonction computeScore) et
+appelee par la route GET /api/search.
+
+Etapes de calcul :
+1. Verification des donnees d'entree (quote Finnhub)
+   - c : prix actuel
+   - dp : variation en pourcentage sur la seance
+   - h : plus haut de la seance
+   - l : plus bas de la seance
+   Si c n'est pas numerique, on retourne une valeur de securite :
+   score = 5, rendement = 0, risque = 0.5.
+
+2. Calcul du rendement (indicateur de performance)
+   Formule :
+   rendement = |dp|
+   puis arrondi a 2 decimales.
+   Explication simple :
+   on garde l'amplitude de la variation (hausse ou baisse), pour montrer
+   "combien ca bouge" en pourcentage.
+
+3. Calcul du risque (indicateur de volatilite)
+   Formule intermediaire :
+   volatilite = (h - l) / c
+   Puis conversion en score de risque :
+   risque = 0.3 + 2 * volatilite
+   Enfin, bornage :
+   risque = min(1, max(0, risque))
+   Explication simple :
+   plus l'ecart entre le plus haut et le plus bas est grand, plus le titre
+   est juge instable, donc plus le risque augmente.
+
+4. Calcul du score simplifie (note finale sur 10)
+   Formule brute :
+   score = 5 + (dp / 10) - (0.5 * risque)
+   Puis bornage et arrondi :
+   score = min(10, max(0, score))
+   score = arrondi(score, 1 decimale)
+   Explication simple :
+   - base neutre a 5/10
+   - bonus si la variation dp est positive
+   - malus si le risque est eleve
+   Le resultat final reste toujours entre 0 et 10.
+
+Ce choix permet d'obtenir une note lisible rapidement, tout en conservant
+une logique metier justifiable (bonus si variation positive, malus si risque
+eleve).
+
+Productions realisees (exemples)
+--------------------------------
+
+- Module metier dedie : lib/score.js (computeScore, VERSION_ALGO).
+- Integration backend : routes/api.js (GET /api/search).
+- Gestion des cas de secours :
+  - valeurs de securite si quote invalide dans computeScore
+  - reponse fallback si API Finnhub indisponible (route /api/search)
+- Validation automatique de la notation :
+  tests/score.test.js (tests unitaires) et tests/api.test.js (test d'integration
+  sur /api/search).
+
+Schema a inserer (a faire)
+--------------------------
+
+Oui, recommande dans cette section :
+
+- Type : schema de flux de notation (pipeline de calcul)
+- Contenu minimal :
+  Recherche utilisateur -> /api/search -> Finnhub quote/profile
+  -> computeScore (rendement + risque + score)
+  -> Reponse JSON (ticker, score_simplifie, rendement, risque)
+- Variante utile :
+  ajouter la branche "fallback" si Finnhub indisponible
+  pour montrer la robustesse de l'application.
+- Emplacement recommande :
+  directement apres cette section, ou en annexe F avec renvoi dans le texte.
+
+
+===============================================================================
+CONCLUSION
+===============================================================================
+
+Le projet SimplifiedAction couvre les attentes du bloc 2 en SLAM :
+conception d'architecture, securisation, modelisation et exploitation des
+donnees, tests de validation, et qualite ergonomique orientee utilisateur.
+
+Pour maximiser la qualite du dossier E6 :
+- mettre le MCD Merise dans le corps,
+- ajouter un schema d'architecture global,
+- joindre les captures ergonomiques,
+- renvoyer vers les annexes techniques (tests, SQL, docs detaillees).
+
+===============================================================================
+FIN
+===============================================================================

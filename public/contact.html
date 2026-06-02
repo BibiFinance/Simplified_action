@@ -32,10 +32,61 @@
   </header>
 
   <main class="main page-main">
-    <div class="container page-container">
+    <div class="container page-container page-container--form">
       <h1 class="page-title">Contact</h1>
-      <p class="page-intro">Formulaire de contact (Formspree) – à venir.</p>
-      <a href="index.html" class="btn btn--primary">Retour à l’accueil</a>
+      <p class="page-intro">Utilise ce formulaire pour envoyer un message a l'equipe Simplifiedaction.</p>
+
+      <form
+        class="auth-form"
+        action="https://formspree.io/f/xvznpgeg"
+        method="POST"
+      >
+        <label class="auth-label" for="contact-name">Nom</label>
+        <input
+          class="auth-input"
+          id="contact-name"
+          name="name"
+          type="text"
+          autocomplete="name"
+          required
+        >
+
+        <label class="auth-label" for="contact-email">Email</label>
+        <input
+          class="auth-input"
+          id="contact-email"
+          name="email"
+          type="email"
+          autocomplete="email"
+          required
+        >
+
+        <label class="auth-label" for="contact-subject">Sujet</label>
+        <input
+          class="auth-input"
+          id="contact-subject"
+          name="subject"
+          type="text"
+          required
+        >
+
+        <label class="auth-label" for="contact-message">Message</label>
+        <textarea
+          class="auth-input auth-input--textarea"
+          id="contact-message"
+          name="message"
+          rows="6"
+          required
+        ></textarea>
+
+        <input type="hidden" name="_subject" value="Nouveau message - Simplifiedaction">
+        <input class="visually-hidden" type="text" name="_gotcha" tabindex="-1" autocomplete="off">
+
+        <button type="submit" class="btn btn--primary btn--full">Envoyer</button>
+      </form>
+
+      <p class="contact-help">Formulaire connecte a Formspree.</p>
+      <a href="index.html" class="link-back">Retour a l'accueil</a>
     </div>
   </main>
 

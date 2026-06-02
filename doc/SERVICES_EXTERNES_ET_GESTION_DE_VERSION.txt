@@ -1,0 +1,387 @@
+===============================================================================
+     SERVICES EXTERNES ET GESTION DE VERSION - Projet SimplifiedAction
+     BTS SIO SLAM - Dossier technique E6
+===============================================================================
+
+
+
+===============================================================================
+ PARTIE 1 : SERVICES EXTERNES (API et services tiers)
+===============================================================================
+
+
+1. VUE D'ENSEMBLE
+------------------
+
+L'application SimplifiedAction s'appuie sur trois services externes
+pour enrichir ses fonctionnalites sans developper l'ensemble en interne :
+
+  +--------------------+-------------------------------+-------------------+
+  | Service            | Role                          | Protocole         |
+  +--------------------+-------------------------------+-------------------+
+  | Finnhub            | Donnees boursieres            | API REST (HTTPS)  |
+  | Stripe             | Paiement / abonnements        | API REST + Webhook|
+  | Yahoo Finance RSS  | Actualites financieres        | Flux RSS (XML)    |
+  +--------------------+-------------------------------+-------------------+
+
+Tous les appels sont realises cote serveur (backend Node.js/Express).
+Les cles API ne sont jamais exposees au client (navigateur).
+
+
+2. FINNHUB - DONNEES BOURSIERES
+---------------------------------
+
+2.1 Presentation
+
+  Finnhub (https://finnhub.io) est une API REST fournissant des donnees
+  financieres en temps reel : recherche de symboles, cours, profils
+  d'entreprises, indicateurs.
+
+  Le projet utilise le plan gratuit (limite a 60 appels/minute).
+
+2.2 Endpoints utilises
+
+  +----------------------------------+----------------------------------------+
+  | Endpoint                         | Utilisation                            |
+  +----------------------------------+----------------------------------------+
+  | GET /api/v1/search?q=...         | Recherche de symbole par nom ou ticker |
+  |                                  | Ex : "apple" -> AAPL, Apple Inc.      |
+  +----------------------------------+----------------------------------------+
+  | GET /api/v1/quote?symbol=...     | Cours actuel : prix (c), variation (dp)|
+  |                                  | plus haut (h), plus bas (l), ouverture |
+  +----------------------------------+----------------------------------------+
+  | GET /api/v1/stock/profile2?...   | Profil entreprise : nom, secteur       |
+  |                                  | (finnhubIndustry), pays, etc.          |
+  +----------------------------------+----------------------------------------+
+
+2.3 Implementation (lib/finnhub.js)
+
+  - La cle API est lue depuis la variable d'environnement FINNHUB_API_KEY.
+  - Si la cle est absente, le module renvoie null et la route utilise un
+    fallback (donnees simulees) pour ne pas bloquer l'application.
+  - Chaque appel construit une URL avec le parametre token=<cle>.
+  - Les reponses sont au format JSON.
+
+2.4 Flux d'un appel de recherche
+
+  Navigateur                 Backend Express              Finnhub
+      |                           |                          |
+      |  GET /api/search?q=AAPL   |                          |
+      |-------------------------->|                          |
+      |                           |  GET /v1/search?q=AAPL   |
+      |                           |------------------------->|
+      |                           |  { result: [{symbol...}] |
+      |                           |<-------------------------|
+      |                           |  GET /v1/quote?symbol=AAPL|
+      |                           |------------------------->|
+      |                           |  { c: 180, dp: 1.5, ...} |
+      |                           |<-------------------------|
+      |                           |  computeScore(quote)      |
+      |                           |  (calcul du score 0-10)   |
+      |  { ticker, score, ... }   |                          |
+      |<--------------------------|                          |
+
+2.5 Cache
+
+  Un cache en memoire (Map) avec un TTL de 10 minutes est applique aux
+  resultats de recherche pour :
+  - Limiter les appels API (respect de la limite 60/min).
+  - Ameliorer le temps de reponse pour les requetes repetees.
+
+
+3. STRIPE - PAIEMENT ET ABONNEMENTS
+-------------------------------------
+
+3.1 Presentation
+
+  Stripe (https://stripe.com) est une plateforme de paiement en ligne.
+  Le projet l'utilise pour gerer les abonnements premium (offre payante
+  avec fonctionnalites avancees).
+
+  En developpement, les cles de test Stripe sont utilisees (mode sandbox,
+  aucun vrai paiement). La carte de test est 4242 4242 4242 4242.
+
+3.2 Cles et configuration (.env)
+
+  STRIPE_SECRET_KEY       Cle secrete (sk_test_... en dev, sk_live_... en prod)
+  STRIPE_PRICE_ID         Identifiant du tarif (price_xxx cree dans Stripe)
+  STRIPE_WEBHOOK_SECRET   Secret pour verifier la signature des webhooks
+
+3.3 Flux de paiement (Stripe Checkout)
+
+  Navigateur        Backend Express          Stripe
+      |                   |                     |
+      | POST /api/stripe/ |                     |
+      | create-checkout   |                     |
+      |------------------>|                     |
+      |                   | stripe.checkout.    |
+      |                   | sessions.create()   |
+      |                   |-------------------->|
+      |                   |   { url: "https://  |
+      |                   |     checkout..." }   |
+      |                   |<--------------------|
+      | redirect vers url |                     |
+      |<------------------|                     |
+      |                   |                     |
+      | (paiement sur     |                     |
+      |  page Stripe)     |                     |
+      |                   |                     |
+      |                   | POST /api/stripe/   |
+      |                   | webhook             |
+      |                   | (event: checkout.   |
+      |                   |  session.completed) |
+      |                   |<--------------------|
+      |                   | saveSubscription()  |
+      |                   | (MAJ BDD)           |
+      |                   |                     |
+      | redirect          |                     |
+      | /compte.html?     |                     |
+      | success=1         |                     |
+      |<------------------|                     |
+
+3.4 Webhook Stripe (routes/stripe.js)
+
+  Le webhook est un endpoint appele par Stripe (serveur a serveur) pour
+  notifier le backend d'evenements de paiement. L'application traite :
+
+  - checkout.session.completed : paiement valide, creation de l'abonnement
+    en base (table stripe_subscriptions), mise a jour du stripe_customer_id
+    de l'utilisateur.
+  - customer.subscription.updated : changement de statut (ex. renouvellement).
+  - customer.subscription.deleted : annulation de l'abonnement.
+
+  La signature du webhook est verifiee avec STRIPE_WEBHOOK_SECRET pour
+  garantir que la requete provient bien de Stripe (securite).
+
+  Le body du webhook est recu en format brut (express.raw) avant le
+  middleware express.json(), car Stripe signe le corps brut.
+
+3.5 Determination du statut premium
+
+  La route GET /auth/me interroge la table stripe_subscriptions :
+
+    SELECT id, status, current_period_end
+    FROM stripe_subscriptions
+    WHERE user_id = $1
+      AND status IN ('active', 'trialing')
+      AND (current_period_end IS NULL OR current_period_end > NOW())
+    LIMIT 1;
+
+  Si un enregistrement est trouve, isPremium = true.
+
+
+4. YAHOO FINANCE RSS - ACTUALITES
+-----------------------------------
+
+4.1 Presentation
+
+  Les actualites liees a une action sont recuperees depuis le flux RSS
+  public de Yahoo Finance. Aucune cle API n'est necessaire.
+
+  URL de base : https://finance.yahoo.com/rss/headline?s=<TICKER>
+
+4.2 Implementation (routes/api.js)
+
+  - Le module rss-parser (npm) parse le flux XML en objets JavaScript.
+  - Seuls les 10 premiers articles sont renvoyes au client.
+  - Chaque article contient : titre, url, resume (texte brut), date.
+
+4.3 Cache
+
+  Un cache en memoire (Map) avec un TTL de 5 minutes est applique aux
+  actualites par ticker, pour eviter de recharger le flux RSS a chaque
+  requete.
+
+4.4 Gestion d'erreur
+
+  Si le flux RSS est indisponible (timeout, erreur reseau), le backend
+  renvoie un code 502 avec un tableau vide (items: []) et un message
+  d'erreur. L'interface affiche un message adapte a l'utilisateur.
+
+
+5. SECURITE DES SERVICES EXTERNES
+------------------------------------
+
+  +------------------------------+------------------------------------------+
+  | Mesure                       | Detail                                   |
+  +------------------------------+------------------------------------------+
+  | Cles dans .env               | Jamais versionnees (fichier dans          |
+  |                              | .gitignore), jamais envoyees au client.   |
+  +------------------------------+------------------------------------------+
+  | Appels cote serveur          | Toutes les requetes vers Finnhub, Stripe  |
+  |                              | et Yahoo passent par le backend Express.  |
+  |                              | Le navigateur n'a jamais acces aux cles.  |
+  +------------------------------+------------------------------------------+
+  | Verification signature       | Les webhooks Stripe sont verifies avec    |
+  | webhook                      | stripe.webhooks.constructEvent() et le    |
+  |                              | secret STRIPE_WEBHOOK_SECRET.            |
+  +------------------------------+------------------------------------------+
+  | Mode degradé                 | Si FINNHUB_API_KEY est absent, un         |
+  |                              | fallback renvoie des donnees simulees.    |
+  |                              | L'application reste fonctionnelle.        |
+  +------------------------------+------------------------------------------+
+  | Limitation d'appels (cache)  | Les caches (10 min recherche, 5 min news) |
+  |                              | reduisent la charge sur les API externes. |
+  +------------------------------+------------------------------------------+
+
+
+
+===============================================================================
+ PARTIE 2 : GESTION DE VERSION (Git et GitHub)
+===============================================================================
+
+
+1. OUTIL UTILISE
+-----------------
+
+  - Systeme de gestion de version : Git
+  - Hebergement du depot : GitHub
+  - Depot : https://github.com/BibiFinance/Simplified_action.git
+  - Branche principale : main
+
+
+2. STRUCTURE DU DEPOT
+----------------------
+
+  Simplifiedaction/
+  ├── public/               # Frontend (HTML, CSS, JS)
+  │   ├── index.html
+  │   ├── compte.html
+  │   ├── favoris.html
+  │   ├── abonnements.html
+  │   ├── sp500.html
+  │   ├── css/
+  │   └── js/
+  ├── routes/               # Routes Express (backend)
+  │   ├── api.js            # Recherche Finnhub, actualites RSS
+  │   ├── auth.js           # Inscription, connexion, profil (JWT)
+  │   ├── stripe.js         # Paiement Stripe (Checkout, webhook)
+  │   ├── favorites.js      # API favoris (CRUD)
+  │   └── sp500.js          # Liste S&P 500
+  ├── lib/                  # Modules metier
+  │   ├── db.js             # Acces PostgreSQL (ou memoire)
+  │   ├── finnhub.js        # Client API Finnhub
+  │   └── score.js          # Calcul du score simplifie
+  ├── tests/                # Tests automatises (Jest + supertest)
+  ├── doc/                  # Documentation technique
+  ├── app.js                # Application Express (exportee pour tests)
+  ├── server.js             # Point d'entree serveur (app.listen)
+  ├── package.json          # Dependances et scripts npm
+  ├── .env                  # Variables d'environnement (NON versionne)
+  └── .gitignore            # Fichiers exclus du depot
+
+
+3. HISTORIQUE DES COMMITS
+--------------------------
+
+  Le projet suit une progression par etapes fonctionnelles.
+  Chaque commit correspond a un lot coherent de fonctionnalites :
+
+  +------------+-----------------------------------------------------------+
+  | Date       | Commit                                                    |
+  +------------+-----------------------------------------------------------+
+  | 2026-02-16 | Simplifiedaction: frontend, backend Express, auth,        |
+  |            | Finnhub, RSS, BDD PostgreSQL, doc                         |
+  |            | -> Mise en place initiale : interface, serveur, recherche, |
+  |            |    authentification, base de donnees, documentation.       |
+  +------------+-----------------------------------------------------------+
+  | 2026-02-22 | Favoris, liste S&P 500 statique, Stripe, nav et           |
+  |            | correctifs                                                |
+  |            | -> Ajout des favoris, page S&P 500, integration Stripe    |
+  |            |    (abonnement premium), corrections d'interface.          |
+  +------------+-----------------------------------------------------------+
+  | 2026-04-11 | Tests automatises (Jest + supertest), refactor app/server  |
+  |            | pour export testable                                      |
+  |            | -> Suite de tests (unitaires + API), separation app.js /   |
+  |            |    server.js pour permettre les tests avec supertest.      |
+  +------------+-----------------------------------------------------------+
+  | 2026-04-11 | UI compte : statut Premium/Basic, feedback post-paiement, |
+  |            | correctifs nav auth                                       |
+  |            | -> Amelioration de la page Mon compte, affichage du        |
+  |            |    statut, message de confirmation apres checkout Stripe.  |
+  +------------+-----------------------------------------------------------+
+  | 2026-04-11 | Documentation : fiche E6, schema DBML, doc tests, mise a  |
+  |            | jour README, retrait .env.example                         |
+  |            | -> Documentation technique pour le dossier E6 : fiche     |
+  |            |    descriptive, schema BDD, guide des tests, README.       |
+  +------------+-----------------------------------------------------------+
+
+
+4. POLITIQUE DE VERSIONNEMENT
+------------------------------
+
+4.1 Fichiers exclus (.gitignore)
+
+  Les fichiers suivants ne sont jamais commites :
+
+  - node_modules/        Dependances npm (reinstallees avec npm install)
+  - .env                 Variables d'environnement (cles API, secrets JWT,
+                         URL de base de donnees)
+  - .env.local           Variantes locales du .env
+  - *.log                Fichiers de log
+  - .DS_Store, Thumbs.db Fichiers systeme (macOS, Windows)
+
+  Raisons :
+  - Securite : les cles et secrets ne doivent jamais apparaitre dans
+    l'historique Git (risque d'exposition publique sur GitHub).
+  - Taille : node_modules/ peut contenir des centaines de Mo ; il est
+    regenere a partir de package-lock.json.
+
+4.2 Bonnes pratiques appliquees
+
+  - Messages de commit descriptifs en francais, resumant les changements
+    fonctionnels (pas de commits vides ou "fix" sans contexte).
+  - Commits regroupes par domaine fonctionnel (backend, frontend, docs)
+    pour faciliter la relecture de l'historique.
+  - Versionnement semantique dans package.json (version 0.2.0).
+  - Le fichier package-lock.json est versionne pour garantir la
+    reproductibilite des installations (memes versions exactes des
+    dependances sur chaque machine).
+
+
+5. UTILISATION DE GIT DANS LE PROJET
+--------------------------------------
+
+5.1 Commandes principales utilisees
+
+  +----------------------------------+--------------------------------------+
+  | Commande                         | Utilisation                          |
+  +----------------------------------+--------------------------------------+
+  | git init                         | Initialiser le depot local           |
+  | git add <fichiers>               | Ajouter des fichiers au staging      |
+  | git commit -m "message"          | Creer un commit avec un message      |
+  | git status                       | Voir les fichiers modifies/non       |
+  |                                  | suivis                               |
+  | git diff                         | Voir les modifications ligne par     |
+  |                                  | ligne avant de commiter              |
+  | git log --oneline                | Consulter l'historique des commits   |
+  | git push origin main             | Envoyer les commits vers GitHub      |
+  | git remote -v                    | Verifier le depot distant configure  |
+  +----------------------------------+--------------------------------------+
+
+5.2 Workflow
+
+  1. Developper une fonctionnalite ou un correctif en local.
+  2. Verifier les changements : git status, git diff.
+  3. Ajouter les fichiers concernes : git add <fichiers>.
+  4. Commiter avec un message clair : git commit -m "description".
+  5. Pousser vers GitHub : git push origin main.
+  6. Verifier sur GitHub que le depot est a jour.
+
+5.3 Interet pour le projet et l'epreuve E6
+
+  - Tracabilite : chaque modification est datee et documentee dans
+    l'historique. Le jury peut consulter l'evolution du projet.
+  - Collaboration : le depot GitHub permet de partager le code avec
+    l'equipe pedagogique ou d'autres developpeurs.
+  - Sauvegarde : le code est duplique sur GitHub (depot distant), ce
+    qui protege contre la perte de donnees locales.
+  - Demonstration de competences : l'utilisation de Git est un
+    indicateur de performance du bloc 2 du referentiel (integration
+    continue, gestion des versions, outil collaboratif).
+
+
+===============================================================================
+  Document redige pour le dossier technique E6 - BTS SIO SLAM
+  Projet SimplifiedAction
+===============================================================================

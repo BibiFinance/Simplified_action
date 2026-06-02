@@ -7,7 +7,8 @@
 const express = require('express');
 const Parser = require('rss-parser');
 const finnhub = require('../lib/finnhub');
-const { computeScore } = require('../lib/score');
+const db = require('../lib/db');
+const { computeScore, VERSION_ALGO } = require('../lib/score');
 
 const router = express.Router();
 const rssParser = new Parser({ timeout: 10000 });
@@ -21,6 +22,23 @@ const SEARCH_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const newsCache = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
+async function persistScoreHistory(data) {
+  if (!db.isConfigured()) return;
+  try {
+    await db.saveSearchScore({
+      ticker: data.ticker,
+      entreprise: data.entreprise,
+      secteur: data.secteur,
+      score_simplifie: data.score_simplifie,
+      rendement: data.rendement,
+      risque: data.risque,
+      version_algo: VERSION_ALGO,
+    });
+  } catch (err) {
+    console.error('Historique notation:', err.message);
+  }
+}
+
 // Réponse de secours si Finnhub indisponible ou sans clé
 function fallbackSearch(q) {
   const ticker = q.length <= 5 ? q.toUpperCase() : q.slice(0, 4).toUpperCase();
@@ -33,6 +51,8 @@ function fallbackSearch(q) {
     score_simplifie: Math.round(score * 10) / 10,
     rendement: 2.4,
     risque: 0.6,
+    source: 'fallback',
+    temps_reel: false,
   };
 }
 
@@ -46,7 +66,12 @@ router.get('/search', async (req, res) => {
   const cacheKey = q.toUpperCase();
   const cached = searchCache.get(cacheKey);
   if (cached && Date.now() - cached.date < SEARCH_CACHE_TTL_MS) {
-    return res.json(cached.data);
+    return res.json({
+      ...cached.data,
+      source: 'cache',
+      temps_reel: cached.data.temps_reel === true,
+      cache_age_sec: Math.round((Date.now() - cached.date) / 1000),
+    });
   }
 
   const key = finnhub.getApiKey();
@@ -88,7 +113,10 @@ router.get('/search', async (req, res) => {
       score_simplifie,
       rendement,
       risque,
+      source: 'finnhub',
+      temps_reel: true,
     };
+    await persistScoreHistory(data);
     searchCache.set(cacheKey, { data, date: Date.now() });
     res.json(data);
   } catch (err) {
